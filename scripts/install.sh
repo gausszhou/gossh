@@ -55,8 +55,11 @@ case "$MACH" in
     *) echo "unsupported architecture: $MACH (releases cover amd64/arm64)" >&2; exit 1 ;;
 esac
 PLATFORM="gossh-$GOOS-$GOARCH"
-# Windows 二进制带 .exe 后缀;安装目标名同样带 .exe(否则 Windows 无法执行)
+# Windows 的二进制与压缩包资产均带 .exe 后缀(Makefile 的 $$ext 拼接,
+# 即 gossh-windows-amd64.exe.tar.gz);安装目标名同样带 .exe
+# (否则 Windows 无法执行)。
 if [ "$GOOS" = windows ]; then
+    PLATFORM="$PLATFORM.exe"
     BIN="gossh.exe"
 else
     BIN="gossh"
