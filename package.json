@@ -1,0 +1,16 @@
+{
+    "name": "gossh",
+    "version": "0.1.0",
+    "private": true,
+    "description": "gossh - SSH client with a browser UI",
+    "packageManager": "pnpm@11.5.2",
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "scripts": {
+        "dev:web": "pnpm --filter gotty-frontend dev",
+        "build": "pnpm --filter gotty-frontend build",
+        "build:web": "pnpm --filter gotty-frontend build",
+        "preview:web": "pnpm --filter gotty-frontend preview"
+    }
+}

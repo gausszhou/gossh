@@ -1,0 +1,345 @@
+// 轻量国际化:跟随浏览器语言(zh/en),设置弹窗内可手动切换并持久化。
+// 不引入 vue-i18n 依赖:一个 reactive lang ref + 字典即可满足界面文案。
+// 找不到翻译键时 t() 原样返回 key —— 界面文案因此始终可读。
+import { ref } from 'vue'
+
+export type Lang = 'zh' | 'en'
+
+const LANG_KEY = 'gossh.lang'
+
+const messages: Record<Lang, Record<string, string>> = {
+    zh: {
+        // ── 通用 ──
+        'common.cancel': '取消',
+        'common.close': '关闭',
+        'common.save': '保存',
+        'common.delete': '删除',
+        'common.confirm': '确认',
+        'common.loading': '加载中…',
+        'common.error': '错误',
+        // ── 页签栏 ──
+        'tab.close': '关闭页签',
+        'tab.settings': '打开设置',
+        'tab.latency': '往返延迟(RTT),每 2 秒刷新',
+        'tab.newHost': '新建主机',
+        // ── 主机列表 ──
+        'host.search': '搜索名称 / 地址 / 用户…',
+        'host.empty': '暂无主机',
+        'host.emptyHint': '点击右上角「新建主机」添加第一条记录',
+        'host.ungrouped': '未分组',
+        'host.collapse': '折叠主机列表',
+        'host.expand': '展开主机列表',
+        'host.act.connect': '连接',
+        'host.act.run': '运行',
+        'host.act.sftp': 'SFTP',
+        'host.act.edit': '编辑',
+        'host.act.delete': '删除',
+        'host.act.confirmDelete': '确认删除?',
+        'host.deleteFailed': '删除失败',
+        'host.credDefault': 'default',
+        'host.credKey': 'key',
+        'host.credAgent': 'agent',
+        'host.credPassword': 'password',
+        'host.via': 'via',
+        // ── 主机表单 ──
+        'hostForm.create': '新建主机',
+        'hostForm.edit': '编辑主机',
+        'hostForm.name': '名称',
+        'hostForm.address': '地址',
+        'hostForm.port': '端口',
+        'hostForm.user': '用户名',
+        'hostForm.group': '分组',
+        'hostForm.credentialKind': '认证方式',
+        'hostForm.credentialKeyPath': '私钥路径',
+        'hostForm.via': '跳板机',
+        'hostForm.viaNone': '无(直连)',
+        'hostForm.required': '名称、地址与用户名必填',
+        'hostForm.portInvalid': '端口需为 1–65535 的整数',
+        'hostForm.saveFailed': '保存失败',
+        // ── 凭据弹窗 ──
+        'cred.title': '需要凭据',
+        'cred.message': '连接 %s 需要密码或私钥口令',
+        'cred.retryMessage': '凭据无效,重新输入密码或私钥口令?',
+        'cred.password': '密码',
+        'cred.passphrase': '私钥口令',
+        'cred.saveToKeyring': '保存到系统钥匙串',
+        'cred.submit': '连接',
+        'cred.failed': '连接失败',
+        'cred.busy': '正在连接…',
+        // ── 页签内容 ──
+        'empty.title': '打开一个主机会话',
+        'empty.hint': '从左侧主机列表选择「连接 / SFTP / 运行命令」',
+        'empty.loading': '正在连接…',
+        'dialog.gone': '会话已销毁',
+        'dialog.lost': '连接已断开',
+        'dialog.goneMsg': '该会话已被销毁或不存在',
+        'dialog.reconnect': '重新连接',
+        'dialog.close': '关闭',
+        'ssh.forward': '端口转发',
+        // ── 运行命令 ──
+        'run.title': '运行命令',
+        'run.host': '主机',
+        'run.command': '命令',
+        'run.commandPlaceholder': '如:uptime 或 df -h',
+        'run.args': '参数(空格分隔)',
+        'run.argsPlaceholder': '可空',
+        'run.timeout': '超时(秒,留空 = 默认 60s)',
+        'run.submit': '执行',
+        'run.exitCode': '退出码',
+        'run.duration': '耗时',
+        'run.error': '错误',
+        'run.output': '输出',
+        'run.noOutput': '(无输出)',
+        'run.failed': '执行失败',
+        'run.tabSuffix': '运行',
+        // ── SFTP ──
+        'sftp.upload': '上传',
+        'sftp.mkdir': '新建目录',
+        'sftp.rename': '重命名',
+        'sftp.delete': '删除',
+        'sftp.download': '下载',
+        'sftp.up': '上层目录',
+        'sftp.home': '家目录',
+        'sftp.refresh': '刷新',
+        'sftp.name': '名称',
+        'sftp.size': '大小',
+        'sftp.modTime': '修改时间',
+        'sftp.type': '类型',
+        'sftp.typeDir': '目录',
+        'sftp.typeLink': '链接',
+        'sftp.typeFile': '文件',
+        'sftp.empty': '目录为空',
+        'sftp.loadFailed': '加载失败',
+        'sftp.mkdirPrompt': '目录名称:',
+        'sftp.renamePrompt': '重命名为:',
+        'sftp.deleteConfirm': '确认删除 %s?',
+        'sftp.selectHint': '先选择一个文件 / 目录',
+        'sftp.opFailed': '操作失败',
+        'sftp.uploading': '正在上传 %s…',
+        'sftp.uploaded': '已上传',
+        'sftp.deleteDirNotEmpty': '目录非空,无法删除',
+        'sftp.tabSuffix': 'SFTP',
+        // ── 端口转发 ──
+        'fwd.title': '端口转发',
+        'fwd.kind': '类型',
+        'fwd.local': '本地 (-L)',
+        'fwd.remote': '远程 (-R)',
+        'fwd.dynamic': '动态 (-D)',
+        'fwd.bind': '绑定',
+        'fwd.bindPlaceholder': '如 127.0.0.1:8080 或 8080',
+        'fwd.target': '目标',
+        'fwd.targetPlaceholder': '如 localhost:80(dynamic 可空)',
+        'fwd.add': '添加',
+        'fwd.empty': '暂无转发',
+        'fwd.listTitle': '当前转发',
+        'fwd.addFailed': '添加失败',
+        'fwd.required': '填写绑定地址(以及目标)',
+        // ── 设置 ──
+        'settings.open': '打开设置',
+        'settings.title': '设置',
+        'settings.theme': '主题',
+        'settings.dark': '深色',
+        'settings.light': '浅色',
+        'settings.language': '语言',
+        'settings.token': '访问令牌',
+        'settings.tokenHint': '来自页面 URL ?token=,已存入本会话的 sessionStorage',
+        'settings.knownHosts': '已知主机密钥',
+        'settings.knownHostsEmpty': '暂无记录(首次连接时自动信任)',
+        'settings.forget': '删除',
+        'settings.forgetConfirm': '删除该主机的密钥信任?',
+        'settings.forgetFailed': '删除失败',
+        'settings.pageTitle': '页面标题',
+        'settings.pageTitlePlaceholder': '浏览器标签页标题,留空恢复默认',
+        'settings.save': '保存',
+        'settings.saved': '已保存',
+        'settings.saveFailed': '保存失败',
+    },
+    en: {
+        // ── Generic ──
+        'common.cancel': 'Cancel',
+        'common.close': 'Close',
+        'common.save': 'Save',
+        'common.delete': 'Delete',
+        'common.confirm': 'Confirm',
+        'common.loading': 'Loading…',
+        'common.error': 'Error',
+        // ── Tab bar ──
+        'tab.close': 'Close tab',
+        'tab.settings': 'Open settings',
+        'tab.latency': 'Round-trip latency (RTT), refreshed every 2s',
+        'tab.newHost': 'New host',
+        // ── Host list ──
+        'host.search': 'Search name / address / user…',
+        'host.empty': 'No hosts yet',
+        'host.emptyHint': 'Click "New host" in the top-right to add one',
+        'host.ungrouped': 'Ungrouped',
+        'host.collapse': 'Collapse host list',
+        'host.expand': 'Expand host list',
+        'host.act.connect': 'Connect',
+        'host.act.run': 'Run',
+        'host.act.sftp': 'SFTP',
+        'host.act.edit': 'Edit',
+        'host.act.delete': 'Delete',
+        'host.act.confirmDelete': 'Confirm?',
+        'host.deleteFailed': 'Failed to delete',
+        'host.credDefault': 'default',
+        'host.credKey': 'key',
+        'host.credAgent': 'agent',
+        'host.credPassword': 'password',
+        'host.via': 'via',
+        // ── Host form ──
+        'hostForm.create': 'New host',
+        'hostForm.edit': 'Edit host',
+        'hostForm.name': 'Name',
+        'hostForm.address': 'Address',
+        'hostForm.port': 'Port',
+        'hostForm.user': 'User',
+        'hostForm.group': 'Group',
+        'hostForm.credentialKind': 'Credential',
+        'hostForm.credentialKeyPath': 'Key path',
+        'hostForm.via': 'Jump host',
+        'hostForm.viaNone': 'None (direct)',
+        'hostForm.required': 'Name, address and user are required',
+        'hostForm.portInvalid': 'Port must be an integer 1–65535',
+        'hostForm.saveFailed': 'Failed to save',
+        // ── Credentials modal ──
+        'cred.title': 'Credentials required',
+        'cred.message': 'Connecting to %s requires a password or key passphrase',
+        'cred.retryMessage': 'Invalid credentials — enter the password or key passphrase again?',
+        'cred.password': 'Password',
+        'cred.passphrase': 'Key passphrase',
+        'cred.saveToKeyring': 'Save to system keyring',
+        'cred.submit': 'Connect',
+        'cred.failed': 'Connection failed',
+        'cred.busy': 'Connecting…',
+        // ── Tab content ──
+        'empty.title': 'Open a host session',
+        'empty.hint': 'Pick a host on the left: Connect / SFTP / Run command',
+        'empty.loading': 'Connecting…',
+        'dialog.gone': 'Session closed',
+        'dialog.lost': 'Connection lost',
+        'dialog.goneMsg': 'This session has been destroyed or does not exist',
+        'dialog.reconnect': 'Reconnect',
+        'dialog.close': 'Close',
+        'ssh.forward': 'Port forwards',
+        // ── Run command ──
+        'run.title': 'Run command',
+        'run.host': 'Host',
+        'run.command': 'Command',
+        'run.commandPlaceholder': 'e.g. uptime or df -h',
+        'run.args': 'Args (space separated)',
+        'run.argsPlaceholder': 'optional',
+        'run.timeout': 'Timeout (s, blank = default 60s)',
+        'run.submit': 'Run',
+        'run.exitCode': 'Exit code',
+        'run.duration': 'Duration',
+        'run.error': 'Error',
+        'run.output': 'Output',
+        'run.noOutput': '(no output)',
+        'run.failed': 'Failed to run',
+        'run.tabSuffix': 'Run',
+        // ── SFTP ──
+        'sftp.upload': 'Upload',
+        'sftp.mkdir': 'New folder',
+        'sftp.rename': 'Rename',
+        'sftp.delete': 'Delete',
+        'sftp.download': 'Download',
+        'sftp.up': 'Up',
+        'sftp.home': 'Home',
+        'sftp.refresh': 'Refresh',
+        'sftp.name': 'Name',
+        'sftp.size': 'Size',
+        'sftp.modTime': 'Modified',
+        'sftp.type': 'Type',
+        'sftp.typeDir': 'Directory',
+        'sftp.typeLink': 'Link',
+        'sftp.typeFile': 'File',
+        'sftp.empty': 'Empty directory',
+        'sftp.loadFailed': 'Failed to load',
+        'sftp.mkdirPrompt': 'Folder name:',
+        'sftp.renamePrompt': 'Rename to:',
+        'sftp.deleteConfirm': 'Delete %s?',
+        'sftp.selectHint': 'Select a file / folder first',
+        'sftp.opFailed': 'Operation failed',
+        'sftp.uploading': 'Uploading %s…',
+        'sftp.uploaded': 'Uploaded',
+        'sftp.deleteDirNotEmpty': 'Directory not empty, cannot delete',
+        'sftp.tabSuffix': 'SFTP',
+        // ── Port forwards ──
+        'fwd.title': 'Port forwards',
+        'fwd.kind': 'Type',
+        'fwd.local': 'Local (-L)',
+        'fwd.remote': 'Remote (-R)',
+        'fwd.dynamic': 'Dynamic (-D)',
+        'fwd.bind': 'Bind',
+        'fwd.bindPlaceholder': 'e.g. 127.0.0.1:8080 or 8080',
+        'fwd.target': 'Target',
+        'fwd.targetPlaceholder': 'e.g. localhost:80 (blank for dynamic)',
+        'fwd.add': 'Add',
+        'fwd.empty': 'No forwards',
+        'fwd.listTitle': 'Active forwards',
+        'fwd.addFailed': 'Failed to add',
+        'fwd.required': 'Fill in the bind address (and target)',
+        // ── Settings ──
+        'settings.open': 'Open settings',
+        'settings.title': 'Settings',
+        'settings.theme': 'Theme',
+        'settings.dark': 'Dark',
+        'settings.light': 'Light',
+        'settings.language': 'Language',
+        'settings.token': 'Access token',
+        'settings.tokenHint': 'From the page URL ?token=, stored in this session\'s sessionStorage',
+        'settings.knownHosts': 'Known host keys',
+        'settings.knownHostsEmpty': 'No records yet (auto-trusted on first connect)',
+        'settings.forget': 'Delete',
+        'settings.forgetConfirm': 'Forget this host\'s key trust?',
+        'settings.forgetFailed': 'Failed to delete',
+        'settings.pageTitle': 'Page title',
+        'settings.pageTitlePlaceholder': 'Browser tab title; empty restores default',
+        'settings.save': 'Save',
+        'settings.saved': 'Saved',
+        'settings.saveFailed': 'Failed to save',
+    },
+}
+
+function detectLang(): Lang {
+    return (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en'
+}
+
+function loadLang(): Lang {
+    try {
+        const v = localStorage.getItem(LANG_KEY)
+        if (v === 'zh' || v === 'en') return v
+    } catch {
+        // localStorage 不可用时静默降级
+    }
+    return detectLang()
+}
+
+// lang 为全局响应式状态:切换后所有使用 t() 的模板自动重渲染。
+export const lang = ref<Lang>(loadLang())
+
+// 初始化同步 <html lang>。
+document.documentElement.lang = lang.value
+
+// t 返回当前语言文案;未知 key 原样返回(便于发现遗漏)。
+export function t(key: string): string {
+    return messages[lang.value][key] ?? key
+}
+
+// setLang 切换语言并持久化。
+export function setLang(l: Lang) {
+    lang.value = l
+    document.documentElement.lang = l
+    try {
+        localStorage.setItem(LANG_KEY, l)
+    } catch {
+        // 忽略持久化失败
+    }
+}
+
+// toggleLang 中/英互切,返回切换后的语言。
+export function toggleLang(): Lang {
+    setLang(lang.value === 'zh' ? 'en' : 'zh')
+    return lang.value
+}
