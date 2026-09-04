@@ -1,9 +1,9 @@
 # GoSSH — 浏览器里的 SSH 客户端
 
+[English](README.md) | **简体中文**
+
 一个基于 Go 技术栈的 SSH 客户端:本地运行一个服务端,浏览器就是你的终端 UI。
 管理主机清单、多会话页签、SFTP 文件传输、端口转发、跳板链、凭据入库(keyring)。
-
-> English documentation: [README.md](README.md).
 
 ```
 gossh serve
@@ -104,5 +104,4 @@ make release   # linux/amd64+arm64, darwin/amd64+arm64, windows/amd64
 
 ## 许可
 
-MIT。基础代码搬迁自 [gotty](https://github.com/gausszhou/gotty)(原作者 Iwasaki Yudai),
-版权声明见 LICENSE。
+MIT。

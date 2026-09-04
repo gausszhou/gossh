@@ -1,5 +1,7 @@
 # GoSSH — an SSH client that lives in your browser
 
+**English** | [简体中文](README.zh.md)
+
 An SSH client built on the Go stack: a small local server runs on your
 machine and your browser **is** the terminal UI. Manage a host inventory,
 keep multiple sessions in tabs, transfer files over SFTP, set up port
@@ -127,6 +129,4 @@ scripts/smoke.sh   # end-to-end smoke against a local sshd
 
 ## License
 
-MIT. The base code is ported from
-[gotty](https://github.com/gausszhou/gotty) (original author Iwasaki
-Yudai); attributions are kept in LICENSE.
+MIT.
