@@ -34,6 +34,21 @@
       </div>
     </aside>
 
+    <!-- 中间:SFTP 文件列表(绑定当前活动 SSH 会话,自动开启) -->
+    <aside v-if="activeSshTab" class="sftp-panel" :class="{ collapsed: sftpPanelCollapsed }">
+      <div class="sftp-panel-header">
+        <span class="sftp-panel-title">📁 {{ activeSshTab.hostLabel || activeSshTab.title }}</span>
+        <button
+          class="sftp-panel-toggle"
+          :title="sftpPanelCollapsed ? t('sftp.expand') : t('sftp.collapse')"
+          @click="sftpPanelCollapsed = !sftpPanelCollapsed"
+        >{{ sftpPanelCollapsed ? '◂' : '▸' }}</button>
+      </div>
+      <div v-if="!sftpPanelCollapsed" class="sftp-panel-body">
+        <SFTPView :session-id="activeSshTab.sessionId!" :active="true" :key="activeSshTab.sessionId" />
+      </div>
+    </aside>
+
     <!-- 右侧:页签区 + 工具体栏 -->
     <div class="main">
       <TabBar
@@ -65,15 +80,6 @@
             @tab-title="(ti) => onTabTitle(tab, ti)"
             @credential-required="(msg) => onPaneCredentialRequired(tab, msg)"
             @forwards="openForwardModal(tab)"
-          />
-          <SFTPView
-            v-else-if="tab.kind === 'sftp'"
-            v-show="tab.id === activeTabId"
-            :ref="(el) => setViewRef(tab.id, el)"
-            :session-id="tab.sessionId!"
-            :host-name="tab.hostName || ''"
-            :active="tab.id === activeTabId"
-            @close="closeTab(tab)"
           />
           <RunView
             v-else-if="tab.kind === 'run'"
@@ -291,23 +297,18 @@ async function connectHost(host: Host) {
 
 // ── SFTP 流程:绑定存活会话(无则静默创建) ──
 async function sftpHost(host: Host) {
-    logger.info('app', 'open sftp host=%s (%s)', host.id, host.name)
+    logger.info('app', 'open sftp workbench host=%s (%s)', host.id, host.name)
+    // 已有存活会话 → 激活其页签,中栏 SFTP 随活动 SSH 会话自动出现
     const existing = await findAliveSessionForHost(host.id)
     if (existing) {
-        addSftpTab(existing, host)
-        return
-    }
-    const id = generateSessionID()
-    try {
-        const s = await createSession({ host_id: host.id, id })
-        addSftpTab(s.id, host)
-    } catch (err) {
-        if (isCredentialError(err)) {
-            openCredPrompt('connect', host.id, id, host.name, (s) => addSftpTab(s.id, host))
+        const tab = tabs.value.find((t) => t.kind === 'ssh' && t.sessionId === existing)
+        if (tab) {
+            activeTabId.value = tab.id
             return
         }
-        showToast(err instanceof Error ? err.message : String(err))
     }
+    // 无会话 → 建立连接(connectHost 处理凭据弹窗),成功后中栏自动出现
+    await connectHost(host)
 }
 
 async function findAliveSessionForHost(hostId: string): Promise<string | null> {
@@ -332,18 +333,6 @@ async function findAliveSessionForHost(hostId: string): Promise<string | null> {
     return null
 }
 
-function addSftpTab(sessionId: string, host: Host) {
-    const id = `sftp-${++tabSeq}`
-    pushTab({
-        id,
-        kind: 'sftp',
-        title: `${host.name} · ${t('sftp.tabSuffix')}`,
-        sessionId,
-        hostId: host.id,
-        hostName: host.name,
-        createdAt: Date.now(),
-    })
-}
 
 // ── 运行命令流程 ──
 const runModalOpen = ref(false)
@@ -593,6 +582,15 @@ function showToast(message: string) {
     }, 4000)
 }
 
+// ── SFTP 中栏(绑定活动 SSH 会话,三栏布局) ──
+const sftpPanelCollapsed = ref(false)
+
+// 活动 SSH 页签:中栏 SFTP 的数据源(host 工作区)
+const activeSshTab = computed(() => {
+    const tab = tabs.value.find((t) => t.id === activeTabId.value)
+    return tab && tab.kind === 'ssh' ? tab : undefined
+})
+
 // ── 访问令牌门禁 ──
 // 无 ?token=(或令牌失效 401)时弹出输入框;保存后重载页面。
 const tokenPromptOpen = ref(false)
@@ -745,6 +743,66 @@ body {
     height: 100%;
     display: flex;
     flex-direction: column;
+}
+
+/* ── 中间 SFTP 栏(与侧栏同风格,固定宽度,内部滚动) ── */
+.sftp-panel {
+    flex: 0 0 auto;
+    width: 340px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-bar);
+    border-right: 1px solid var(--bg-bar-border);
+    min-width: 0;
+}
+
+.sftp-panel.collapsed {
+    width: 40px;
+}
+
+.sftp-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 32px;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--bg-bar-border);
+    font-size: 12px;
+    color: var(--fg-muted);
+    flex: 0 0 auto;
+}
+
+.sftp-panel-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sftp-panel-toggle {
+    background: none;
+    border: none;
+    color: var(--fg-dim);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.sftp-panel-toggle:hover {
+    background: var(--bg-tab-hover);
+    color: var(--fg-bright);
+}
+
+.sftp-panel-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+}
+
+.sftp-panel-body > * {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .main {
