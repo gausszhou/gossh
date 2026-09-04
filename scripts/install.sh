@@ -7,8 +7,9 @@
 #   #   sh install.sh --version v0.0.2 --prefix ~/.local --repo owner/gossh
 #
 # 覆盖平台:Linux / macOS / Windows(**Git Bash**、MSYS2、Cygwin 的 sh 环境)。
-# 流程:探测平台架构 → 取发布信息(latest 或 --version)→ 下载二进制与
-# sha256sums.txt → 校验(校验器不可用时降级跳过并告警)→ 安装到 --prefix
+# 流程:探测平台架构 → 取发布信息(latest 或 --version)→ 下载二进制
+# 压缩包(tar.gz,体积小、针对 GitHub 网络慢优化)与 sha256sums.txt →
+# 校验压缩包(校验器不可用时降级跳过并告警)→ 本地解压 → 安装到 --prefix
 # (默认 $HOME/.local/bin,用户目录,不请求 sudo)。
 #
 # 私有部署:GOSSH_UPDATE_URL 指向一个「GitHub release 同形状」的 JSON 索引
@@ -53,19 +54,20 @@ case "$MACH" in
     aarch64|arm64) GOARCH=arm64 ;;
     *) echo "unsupported architecture: $MACH (releases cover amd64/arm64)" >&2; exit 1 ;;
 esac
-ASSET="gossh-$GOOS-$GOARCH"
-# Windows 资产带 .exe 后缀;安装目标名同样带 .exe(否则 Windows 无法执行)
+PLATFORM="gossh-$GOOS-$GOARCH"
+# Windows 二进制带 .exe 后缀;安装目标名同样带 .exe(否则 Windows 无法执行)
 if [ "$GOOS" = windows ]; then
-    ASSET="$ASSET.exe"
     BIN="gossh.exe"
 else
     BIN="gossh"
 fi
+# 下载资产为 tar.gz 压缩包(体积小、网络友好),本地解压得到二进制
+ASSET="$PLATFORM.tar.gz"
 
 # --- 取发布信息 ----------------------------------------------------------
 BASE_URL="https://github.com/$REPO/releases"
 if [ -n "${GOSSH_UPDATE_URL:-}" ]; then
-    # 私有镜像:JSON 形如 { "tag_name": "v0.0.2", "assets": [ { "name": "gossh-windows-amd64.exe", "browser_download_url": "..." } ] }
+    # 私有镜像:JSON 形如 { "tag_name": "v0.0.2", "assets": [ { "name": "gossh-windows-amd64.exe.tar.gz", "browser_download_url": "..." } ] }
     RELEASE_JSON="$(curl -fsSL "$GOSSH_UPDATE_URL")"
 elif [ -n "$VERSION" ]; then
     RELEASE_JSON="$(curl -fsSL "$BASE_URL/download/$VERSION/release.json" 2>/dev/null || true)"
@@ -131,11 +133,21 @@ if [ "$VERIFIED" = false ]; then
     echo "WARNING: installing without checksum verification. Confirm the release URL is trustworthy." >&2
 fi
 
-# --- 安装 ----------------------------------------------------------------
+# --- 解压并安装 --------------------------------------------------------
 BINDIR="$PREFIX/bin"
 mkdir -p "$BINDIR"
-chmod +x "$TMP/$ASSET" || true   # Git Bash 下对 .exe 执行 chmod 可能是 no-op
-mv -f "$TMP/$ASSET" "$BINDIR/$BIN"
+# tar 在 Linux/macOS/Git Bash 均可用;解压出平台二进制。
+# 包内成员名为 gossh-{os}-{arch}[.exe],与 $BIN(gossh/gossh.exe)不同,
+# 按前缀找到实际文件再安装。
+echo "extracting $ASSET ..."
+tar -xzf "$TMP/$ASSET" -C "$TMP"
+BINARY="$(find "$TMP" -maxdepth 1 -type f -name 'gossh-*' | head -1)"
+if [ -z "$BINARY" ] || [ ! -f "$BINARY" ]; then
+    echo "installed archive contains no gossh binary; aborting" >&2
+    exit 1
+fi
+chmod +x "$BINARY" || true   # Git Bash 下对 .exe 执行 chmod 可能是 no-op
+mv -f "$BINARY" "$BINDIR/$BIN"
 
 "$BINDIR/$BIN" version
 
@@ -148,6 +160,6 @@ installed: $BINDIR/$BIN ($TAG)
   gossh hosts add ...    # 添加主机(或浏览器里填表)
   gossh run <host> 'cmd' # 无浏览器执行单命令
 
-若 $BINDIR 不在 PATH,可加:
-  export PATH="$BINDIR:\$PATH"          # bash / Git Bash
+若 $BINDIR 不在 PATH,可加(bash / Git Bash):
+  export PATH="$BINDIR:\$PATH"
 EOF

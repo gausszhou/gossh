@@ -65,9 +65,14 @@ jobs:
         with:
           files: |
             build/gossh-linux-amd64
+            build/gossh-linux-amd64.tar.gz
             build/gossh-linux-arm64
+            build/gossh-linux-arm64.tar.gz
             build/gossh-darwin-amd64
+            build/gossh-darwin-amd64.tar.gz
             build/gossh-darwin-arm64
+            build/gossh-darwin-arm64.tar.gz
             build/gossh-windows-amd64.exe
+            build/gossh-windows-amd64.exe.tar.gz
             build/sha256sums.txt
           generate_release_notes: true

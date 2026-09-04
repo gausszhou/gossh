@@ -36,6 +36,11 @@ release: frontend static
 			echo "Compressing with UPX..."; \
 			$(UPX) --best --lzma $$out; \
 		fi; \
+		# 每个平台再打一个 tar.gz 压缩包(安装脚本下载压缩包,体积小、
+		# 针对 GitHub 网络慢优化);UPX 已压过的 linux 资产压缩收益小,但仍
+		# 统一打包含进去,安装脚本路径一致。\
+		echo "Packing gossh-$$os-$$arch$$ext.tar.gz..."; \
+		tar -czf "$(OUTPUT_DIR)/gossh-$$os-$$arch$$ext.tar.gz" -C "$(OUTPUT_DIR)" "gossh-$$os-$$arch$$ext"; \
 	done
 	@echo "Writing sha256sums.txt..."; \
 	cd $(OUTPUT_DIR) && sha256sum gossh-* > sha256sums.txt
