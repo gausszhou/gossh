@@ -3,10 +3,11 @@ GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-7)
 # 版本单一来源:git describe --tags 派生(v2.1.0 格式 tag);非 git 环境兜底 2.0.0。
 VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 2.0.0)
 LDFLAGS    := -X github.com/gausszhou/gossh/cmd.Version=$(VERSION) -X github.com/gausszhou/gossh/cmd.CommitID=$(GIT_COMMIT)
-UPX        ?= upx
 
 # 构建矩阵:资产命名 gossh-{os}-{arch}[.exe],与 install.sh / self update 的
-# 映射保持一致;windows 输出 .exe;UPX 仅对 linux 执行(macOS 会破坏签名)。
+# 映射保持一致;windows 输出 .exe。压缩交给 tar.gz 打包(gzip 对未压缩
+# 二进制有效;不再使用 UPX——已压过的资产再 gzip 无收益,且 UPX 会破坏
+# macOS 签名)。
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
 # Default target: 单平台开发构建;多平台发布请显式执行 `make release`
@@ -20,6 +21,8 @@ build: frontend static
 	@mkdir -p $(OUTPUT_DIR)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS) -s -w" -o $(OUTPUT_DIR)/gossh .
 
+# release 产出:5 平台原始二进制 + 各平台 tar.gz 压缩包(博客与脚本都发布,
+# 压缩包供 install.sh 下载,体积小、网络友好;原始二进制供手动下载)。
 release: frontend static
 	@mkdir -p $(OUTPUT_DIR)
 	@for platform in $(PLATFORMS); do \
@@ -32,13 +35,6 @@ release: frontend static
 		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -trimpath \
 			-ldflags "$(LDFLAGS) -s -w" \
 			-o $$out .; \
-		if [ "$$os" = "linux" ] && command -v $(UPX) >/dev/null 2>&1; then \
-			echo "Compressing with UPX..."; \
-			$(UPX) --best --lzma $$out; \
-		fi; \
-		# 每个平台再打一个 tar.gz 压缩包(安装脚本下载压缩包,体积小、
-		# 针对 GitHub 网络慢优化);UPX 已压过的 linux 资产压缩收益小,但仍
-		# 统一打包含进去,安装脚本路径一致。\
 		echo "Packing gossh-$$os-$$arch$$ext.tar.gz..."; \
 		tar -czf "$(OUTPUT_DIR)/gossh-$$os-$$arch$$ext.tar.gz" -C "$(OUTPUT_DIR)" "gossh-$$os-$$arch$$ext"; \
 	done
