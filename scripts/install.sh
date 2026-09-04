@@ -4,10 +4,11 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/gausszhou/gossh/main/scripts/install.sh | sh
 #   # 指定版本 / 安装前缀 / 镜像仓库:
-#   #   sh install.sh --version v0.0.1 --prefix ~/.local --repo owner/gossh
+#   #   sh install.sh --version v0.0.2 --prefix ~/.local --repo owner/gossh
 #
+# 覆盖平台:Linux / macOS / Windows(**Git Bash**、MSYS2、Cygwin 的 sh 环境)。
 # 流程:探测平台架构 → 取发布信息(latest 或 --version)→ 下载二进制与
-# sha256sums.txt → 校验(失败即退出并清理,防投毒/损坏)→ 安装到 --prefix
+# sha256sums.txt → 校验(校验器不可用时降级跳过并告警)→ 安装到 --prefix
 # (默认 $HOME/.local/bin,用户目录,不请求 sudo)。
 #
 # 私有部署:GOSSH_UPDATE_URL 指向一个「GitHub release 同形状」的 JSON 索引
@@ -19,10 +20,10 @@ PREFIX="${GOSSH_PREFIX:-$HOME/.local}"
 REPO="${GOSSH_REPO:-gausszhou/gossh}"
 
 usage() {
-    sed -n '2,12p' "$0"
+    sed -n '2,14p' "$0"
     echo
     echo "options:"
-    echo "  --version <tag>    Target version tag, e.g. v0.0.1 (default: latest release)"
+    echo "  --version <tag>    Target version tag, e.g. v0.0.2 (default: latest release)"
     echo "  --prefix <dir>     Install prefix (default: \$HOME/.local, binary at <prefix>/bin/gossh)"
     echo "  --repo <owner/name> GitHub repository to fetch from (default: gausszhou/gossh)"
 }
@@ -37,18 +38,15 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-# --- 平台/架构探测(与 Makefile 矩阵命名对齐 gossh-{os}-{arch}) ----------
+# --- 平台/架构探测(与 Makefile 矩阵命名对齐 gossh-{os}-{arch}[.exe]) ---
+# Git Bash / MSYS2 / Cygwin 的 uname -s 返回 MINGW64_NT-... / MSYS_NT-... / CYGWIN_NT-...
 OS="$(uname -s 2>/dev/null || true)"
 case "$OS" in
     Linux) GOOS=linux ;;
     Darwin) GOOS=darwin ;;
     MINGW*|MSYS*|CYGWIN*) GOOS=windows ;;
-    *) echo "unsupported OS: $OS (install.sh covers Linux/macOS; Windows: download the .exe from Releases)" >&2; exit 1 ;;
+    *) echo "unsupported OS: $OS (install.sh covers Linux/macOS, and Windows via Git Bash/MSYS2)" >&2; exit 1 ;;
 esac
-if [ "$GOOS" = windows ]; then
-    echo "Windows 请手动下载 Releases 页面二进制: https://github.com/$REPO/releases (install.sh 仅覆盖 Linux/macOS)" >&2
-    exit 1
-fi
 MACH="$(uname -m 2>/dev/null || true)"
 case "$MACH" in
     x86_64|amd64) GOARCH=amd64 ;;
@@ -56,11 +54,18 @@ case "$MACH" in
     *) echo "unsupported architecture: $MACH (releases cover amd64/arm64)" >&2; exit 1 ;;
 esac
 ASSET="gossh-$GOOS-$GOARCH"
+# Windows 资产带 .exe 后缀;安装目标名同样带 .exe(否则 Windows 无法执行)
+if [ "$GOOS" = windows ]; then
+    ASSET="$ASSET.exe"
+    BIN="gossh.exe"
+else
+    BIN="gossh"
+fi
 
 # --- 取发布信息 ----------------------------------------------------------
 BASE_URL="https://github.com/$REPO/releases"
 if [ -n "${GOSSH_UPDATE_URL:-}" ]; then
-    # 私有镜像:JSON 形如 { "tag_name": "v0.0.1", "assets": [ { "name": "gossh-linux-amd64", "browser_download_url": "..." } ] }
+    # 私有镜像:JSON 形如 { "tag_name": "v0.0.2", "assets": [ { "name": "gossh-windows-amd64.exe", "browser_download_url": "..." } ] }
     RELEASE_JSON="$(curl -fsSL "$GOSSH_UPDATE_URL")"
 elif [ -n "$VERSION" ]; then
     RELEASE_JSON="$(curl -fsSL "$BASE_URL/download/$VERSION/release.json" 2>/dev/null || true)"
@@ -99,35 +104,44 @@ echo "downloading $ASSET ..."
 curl -fL --retry 3 --retry-delay 1 -o "$TMP/$ASSET" "$ASSET_URL"
 curl -fsSL -o "$TMP/sha256sums.txt" "$CHECKSUM_URL" || true
 
+VERIFIED=false
 if [ -s "$TMP/sha256sums.txt" ]; then
-    EXPECTED="$(awk -v asset="$ASSET" '$2 == asset {print $1} $1 == asset && NF == 2 {print $2}' "$TMP/sha256sums.txt" | head -1)"
-    if [ -z "$EXPECTED" ]; then
-        echo "checksum file exists but has no entry for $ASSET; aborting (do not install unverified binaries)" >&2
-        exit 1
+    if command -v sha256sum >/dev/null 2>&1; then
+        EXPECTED="$(awk -v asset="$ASSET" '$2 == asset {print $1} $1 == asset && NF == 2 {print $2}' "$TMP/sha256sums.txt" | head -1)"
+        if [ -z "$EXPECTED" ]; then
+            echo "checksum file exists but has no entry for $ASSET; aborting (do not install unverified binaries)" >&2
+            exit 1
+        fi
+        ACTUAL="$(sha256sum "$TMP/$ASSET" | awk '{print $1}')"
+        if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "checksum mismatch for $ASSET:" >&2
+            echo "  expected: $EXPECTED" >&2
+            echo "  actual:   $ACTUAL" >&2
+            exit 1
+        fi
+        VERIFIED=true
+        echo "checksum verified"
+    else
+        echo "WARNING: sha256sum not available in this shell (Git Bash?), skipping verification" >&2
     fi
-    ACTUAL="$(sha256sum "$TMP/$ASSET" | awk '{print $1}')"
-    if [ "$EXPECTED" != "$ACTUAL" ]; then
-        echo "checksum mismatch for $ASSET:" >&2
-        echo "  expected: $EXPECTED" >&2
-        echo "  actual:   $ACTUAL" >&2
-        exit 1
-    fi
-    echo "checksum verified"
 else
     echo "WARNING: sha256sums.txt unavailable (offline mirror?); skipping verification" >&2
+fi
+if [ "$VERIFIED" = false ]; then
+    echo "WARNING: installing without checksum verification. Confirm the release URL is trustworthy." >&2
 fi
 
 # --- 安装 ----------------------------------------------------------------
 BINDIR="$PREFIX/bin"
 mkdir -p "$BINDIR"
-chmod +x "$TMP/$ASSET"
-mv -v "$TMP/$ASSET" "$BINDIR/gossh"
+chmod +x "$TMP/$ASSET" || true   # Git Bash 下对 .exe 执行 chmod 可能是 no-op
+mv -f "$TMP/$ASSET" "$BINDIR/$BIN"
 
-"$BINDIR/gossh" version
+"$BINDIR/$BIN" version
 
 cat <<EOF
 
-installed: $BINDIR/gossh ($TAG)
+installed: $BINDIR/$BIN ($TAG)
 
 使用:
   gossh serve            # 启动并打印带令牌的 URL,浏览器打开即用
@@ -135,5 +149,5 @@ installed: $BINDIR/gossh ($TAG)
   gossh run <host> 'cmd' # 无浏览器执行单命令
 
 若 $BINDIR 不在 PATH,可加:
-  export PATH="$BINDIR:\$PATH"
+  export PATH="$BINDIR:\$PATH"          # bash / Git Bash
 EOF
