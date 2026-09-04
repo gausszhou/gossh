@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=GoSSH
+Comment=SSH client with a browser UI
+Exec=gossh app
+Icon=gossh
+Terminal=false
+Categories=Network;RemoteAccess;
+StartupNotify=false

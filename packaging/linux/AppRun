@@ -1,0 +1,6 @@
+#!/bin/sh
+# AppImage 启动器:双击/运行 AppImage 即进入桌面形态(gossh app)。
+# 单实例锁保证重复点击只是再次打开界面。
+SELF="$(readlink -f "$0")"
+DIR="$(dirname "$SELF")"
+exec "$DIR/usr/bin/gossh" app "$@"

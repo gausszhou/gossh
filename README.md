@@ -41,6 +41,9 @@ the process.
   plus an in-browser entry point
 - **One binary**: the frontend is embedded via `go:embed`; cross-compiles
   with no Node runtime required
+- **Desktop mode (Linux)**: `gossh app` stays resident in the system tray
+  with autostart, single-instance locking, auto-opens the browser with the
+  token injected; releases ship a portable AppImage
 
 ## Installation
 
@@ -76,6 +79,26 @@ First-run flow:
    when asked, optionally "save to keyring";
 3. Work in the session tab; SFTP and port forwards live in the tab
    toolbar.
+
+### Desktop mode (Linux)
+
+```sh
+gossh app              # tray-resident server + auto-opens the browser (token injected)
+gossh app --no-browser # enter the tray without opening the browser (used by autostart)
+```
+
+- The server and the tray live in the same process: closing the browser
+  does not stop sessions; only the tray "quit" item tears the server down
+- Re-running `gossh app` just opens the UI of the running instance
+  (single-instance lock at `~/.gossh/app.lock`)
+- Tray menu: **open UI / autostart (toggle) / quit**; autostart state is
+  the existence of `~/.config/autostart/gossh.desktop`
+- On Linux desktops, grab the **AppImage** from a release: double-click
+  to run, no installation
+- The tray needs GTK/AppIndicator (cgo): a `CGO_ENABLED=0` build (the
+  default `make build`) tells you to use `gossh serve` instead; AppImage
+  and CI builds carry cgo
+- See [ADR 0006](docs/adr/0006-desktop-app.md)
 
 ### CLI
 

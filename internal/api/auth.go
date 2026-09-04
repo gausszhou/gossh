@@ -46,10 +46,10 @@ func generateToken() (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-// resolveToken decides the effective access token: an explicitly
+// ResolveToken decides the effective access token: an explicitly
 // configured one wins; otherwise a token is loaded from TokenFile or
-// generated and persisted there.
-func resolveToken(options *Options) (string, error) {
+// generated and persisted there. 导出供 cmd(app 模式拼 UI URL)复用。
+func ResolveToken(options *Options) (string, error) {
 	if options.Token != "" {
 		return options.Token, nil
 	}

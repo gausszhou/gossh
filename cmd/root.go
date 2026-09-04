@@ -35,6 +35,7 @@ func init() {
 	rootCmd.PersistentFlags().String("config", configPath, "Config file path (GOSSH_CONFIG env var)")
 
 	rootCmd.AddCommand(buildServeCmd())
+	rootCmd.AddCommand(buildAppCmd())
 	rootCmd.AddCommand(buildHostsCmd())
 	rootCmd.AddCommand(buildRunCmd())
 	rootCmd.AddCommand(buildVersionCmd())

@@ -85,80 +85,7 @@ func buildServeCmd() *cobra.Command {
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
-	// Re-apply defaults for fresh option values
-	if err := config.ApplyDefaultValues(appOptions); err != nil {
-		return err
-	}
-	if err := config.ApplyDefaultValues(terminalOptions); err != nil {
-		return err
-	}
-
-	// Apply configuration in precedence order:
-	// env vars < config file < CLI flags
-	if err := config.ApplyEnv(cmd, mappings, appOptions, terminalOptions); err != nil {
-		return err
-	}
-
-	configFile, _ := cmd.Flags().GetString("config")
-	_, statErr := os.Stat(utils.Expand(configFile))
-	if cmd.Flags().Changed("config") || !os.IsNotExist(statErr) {
-		if err := config.ApplyConfigFile(configFile, appOptions, terminalOptions); err != nil {
-			return fmt.Errorf("failed to load config file: %w", err)
-		}
-	}
-
-	config.ApplyFlags(cmd, mappings, appOptions, terminalOptions)
-
-	// 服务端日志落盘(默认 ~/.gossh/logs/gossh.log,文件 + 控制台双写)
-	if err := setupLogFile(appOptions.LogFile); err != nil {
-		return err
-	}
-
-	appOptions.TitleVariables = map[string]interface{}{
-		"hostname": mustHostname(),
-	}
-
-	// 领域对象装配
-	inventory, err := host.LoadInventory(utils.Expand(appOptions.HostsFile))
-	if err != nil {
-		return err
-	}
-	log.Printf("Host inventory: %s (%d hosts)", utils.Expand(appOptions.HostsFile), len(inventory.List()))
-
-	knownHosts, err := sshx.LoadKnownHosts(utils.Expand(appOptions.KnownHostsFile))
-	if err != nil {
-		return err
-	}
-	log.Printf("Host-key store: %s", utils.Expand(appOptions.KnownHostsFile))
-
-	secrets := sshx.NewSecrets()
-	if secrets.Available() {
-		log.Printf("Credentials: system keyring available")
-	} else {
-		log.Printf("Credentials: no system keyring (headless?), falling back to in-memory secrets")
-	}
-
-	var store session.Store = session.NewMemoryStore()
-	if appOptions.SessionFile != "" {
-		storePath := utils.Expand(appOptions.SessionFile)
-		fileStore, err := session.NewFileStore(storePath)
-		if err != nil {
-			return fmt.Errorf("failed to load session history: %w", err)
-		}
-		log.Printf("Session history file: %s", storePath)
-		store = fileStore
-	}
-
-	manager := session.NewManager(
-		session.WithMaxSession(appOptions.MaxSession),
-		session.WithIdleTimeout(time.Duration(appOptions.Timeout)*time.Second),
-		session.WithTerminalOptions(*terminalOptions),
-		session.WithStore(store),
-		session.WithMirrorFactory(api.MirrorFactory(appOptions.Mirror)),
-		session.WithAnswerQueries(appOptions.AnswerQueries),
-	)
-
-	srv, err := api.New(manager, appOptions, inventory, knownHosts, secrets)
+	srv, err := assembleServer(cmd, mappings)
 	if err != nil {
 		return err
 	}
@@ -177,6 +104,90 @@ func runServe(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// assembleServer 完成 serve/app 共用的装配:
+// 优先级(env < 配置文件 < CLI flags)应用 → 日志落盘 → 领域对象装配
+// (清单 / 主机密钥 / 凭据 / 会话) → api.New。
+func assembleServer(cmd *cobra.Command, m map[string]string) (*api.Server, error) {
+	// Re-apply defaults for fresh option values
+	if err := config.ApplyDefaultValues(appOptions); err != nil {
+		return nil, err
+	}
+	if err := config.ApplyDefaultValues(terminalOptions); err != nil {
+		return nil, err
+	}
+
+	// Apply configuration in precedence order:
+	// env vars < config file < CLI flags
+	if err := config.ApplyEnv(cmd, m, appOptions, terminalOptions); err != nil {
+		return nil, err
+	}
+
+	configFile, _ := cmd.Flags().GetString("config")
+	_, statErr := os.Stat(utils.Expand(configFile))
+	if cmd.Flags().Changed("config") || !os.IsNotExist(statErr) {
+		if err := config.ApplyConfigFile(configFile, appOptions, terminalOptions); err != nil {
+			return nil, fmt.Errorf("failed to load config file: %w", err)
+		}
+	}
+
+	config.ApplyFlags(cmd, m, appOptions, terminalOptions)
+
+	// 服务端日志落盘(默认 ~/.gossh/logs/gossh.log,文件 + 控制台双写)
+	if err := setupLogFile(appOptions.LogFile); err != nil {
+		return nil, err
+	}
+
+	appOptions.TitleVariables = map[string]interface{}{
+		"hostname": mustHostname(),
+	}
+
+	// 领域对象装配
+	inventory, err := host.LoadInventory(utils.Expand(appOptions.HostsFile))
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Host inventory: %s (%d hosts)", utils.Expand(appOptions.HostsFile), len(inventory.List()))
+
+	knownHosts, err := sshx.LoadKnownHosts(utils.Expand(appOptions.KnownHostsFile))
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Host-key store: %s", utils.Expand(appOptions.KnownHostsFile))
+
+	secrets := sshx.NewSecrets()
+	if secrets.Available() {
+		log.Printf("Credentials: system keyring available")
+	} else {
+		log.Printf("Credentials: no system keyring (headless?), falling back to in-memory secrets")
+	}
+
+	var store session.Store = session.NewMemoryStore()
+	if appOptions.SessionFile != "" {
+		storePath := utils.Expand(appOptions.SessionFile)
+		fileStore, err := session.NewFileStore(storePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load session history: %w", err)
+		}
+		log.Printf("Session history file: %s", storePath)
+		store = fileStore
+	}
+
+	manager := session.NewManager(
+		session.WithMaxSession(appOptions.MaxSession),
+		session.WithIdleTimeout(time.Duration(appOptions.Timeout)*time.Second),
+		session.WithTerminalOptions(*terminalOptions),
+		session.WithStore(store),
+		session.WithMirrorFactory(api.MirrorFactory(appOptions.Mirror)),
+		session.WithAnswerQueries(appOptions.AnswerQueries),
+	)
+
+	srv, err := api.New(manager, appOptions, inventory, knownHosts, secrets)
+	if err != nil {
+		return nil, err
+	}
+	return srv, nil
 }
 
 func mustHostname() string {

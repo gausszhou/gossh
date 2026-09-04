@@ -55,6 +55,22 @@ jobs:
         run: |
           cd build && sha256sum -c --ignore-missing sha256sums.txt
 
+      - name: Build Linux AppImages (desktop mode)
+        # 桌面形态(gossh app)走 cgo 托盘,产物为免安装 AppImage。
+        # amd64 用 runner 原生 GTK 头;arm64 交叉:目标架构 GTK 头 +
+        # 交叉 gcc + 交叉 pkg-config(依 Ubuntu 包名即可装齐)。
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libayatana-appindicator3-dev
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          export APPIMAGETOOL="$PWD/appimagetool-x86_64.AppImage"
+          bash scripts/build-appimage.sh amd64
+          sudo apt-get install -y gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu libayatana-appindicator3-dev:arm64
+          PKG_CONFIG=aarch64-linux-gnu-pkg-config \
+          PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig \
+          CC=aarch64-linux-gnu-gcc bash scripts/build-appimage.sh arm64
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -63,6 +79,8 @@ jobs:
             build/gossh-linux-amd64.tar.gz
             build/gossh-linux-arm64
             build/gossh-linux-arm64.tar.gz
+            build/gossh-linux-amd64.AppImage
+            build/gossh-linux-arm64.AppImage
             build/gossh-darwin-amd64
             build/gossh-darwin-amd64.tar.gz
             build/gossh-darwin-arm64

@@ -68,7 +68,7 @@ func New(manager *session.Manager, options *Options, inventory *host.Inventory, 
 		originMatcher = matcher
 	}
 
-	token, err := resolveToken(options)
+	token, err := ResolveToken(options)
 	if err != nil {
 		return nil, err
 	}
@@ -180,6 +180,15 @@ func (server *Server) Run(ctx context.Context, options ...RunOption) error {
 	log.Printf("HTTP server is listening at: %s", scheme+"://"+host+":"+port)
 	log.Printf("Open the page with the access token:")
 	log.Printf("  %s://%s:%s/?token=%s", scheme, host, port, server.token)
+	// 桌面形态(app)在绑定后就拿到浏览器 URL(回环规范化,0.0.0.0 等通配
+	// 地址对浏览器不可达,统一换成 127.0.0.1)
+	if opts.urlHook != nil {
+		browserHost := host
+		if browserHost == "0.0.0.0" || browserHost == "::" || browserHost == "" {
+			browserHost = "127.0.0.1"
+		}
+		opts.urlHook(fmt.Sprintf("%s://%s:%s/?token=%s", scheme, browserHost, port, server.token))
+	}
 	if server.options.Address == "0.0.0.0" || server.options.Address == "::" {
 		for _, address := range listAddresses() {
 			log.Printf("Alternative URL: %s://%s:%s/?token=%s", scheme, address, port, server.token)

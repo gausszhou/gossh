@@ -13,7 +13,7 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 # Default target: 单平台开发构建;多平台发布请显式执行 `make release`
 .DEFAULT_GOAL := build
 
-.PHONY: all build release frontend static test vet fmt clean install
+.PHONY: all build release appimage frontend static test vet fmt clean install
 
 all: frontend static release
 
@@ -41,6 +41,12 @@ release: frontend static
 	@echo "Writing sha256sums.txt..."; \
 	cd $(OUTPUT_DIR) && sha256sum gossh-* > sha256sums.txt
 	@echo "Release assets:"; ls -la $(OUTPUT_DIR)
+
+# 桌面形态(Linux AppImage):需要 cgo(GTK/AppIndicator)与 appimagetool
+# (见 scripts/build-appimage.sh)。CI 在 release 时对 amd64/arm64 各跑一次。
+appimage: frontend static
+	@bash scripts/build-appimage.sh amd64
+	@bash scripts/build-appimage.sh arm64
 
 # Install all frontend workspace dependencies (pnpm workspace: apps/web)
 install:

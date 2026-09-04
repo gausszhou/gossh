@@ -11,6 +11,7 @@ import (
 // RunOptions holds a set of configurations for Server.Run().
 type RunOptions struct {
 	gracefullCtx context.Context
+	urlHook      func(string)
 }
 
 // RunOption is an option of Server.Run().
@@ -21,6 +22,15 @@ type RunOption func(*RunOptions)
 func WithGracefullContext(ctx context.Context) RunOption {
 	return func(options *RunOptions) {
 		options.gracefullCtx = ctx
+	}
+}
+
+// WithURLHook 在监听器绑定成功后立即以浏览器可达的完整 UI URL
+// (scheme://host:port/?token=...,host 规范化回环地址)调用 fn。
+// serve 不用;app(桌面形态)用它拿到真实端口并交给浏览器/托盘。
+func WithURLHook(fn func(url string)) RunOption {
+	return func(options *RunOptions) {
+		options.urlHook = fn
 	}
 }
 
