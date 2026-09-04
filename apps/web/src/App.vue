@@ -1,5 +1,25 @@
 <template>
   <div class="app">
+    <!-- 访问令牌门禁:URL 无 ?token= 或令牌无效时弹出(Jupyter 式) -->
+    <div v-if="tokenPromptOpen" class="token-gate">
+      <div class="token-gate-card">
+        <div class="token-gate-title">🔑 {{ t('token.title') }}</div>
+        <div class="token-gate-hint">{{ t('token.hint') }}</div>
+        <input
+          v-model="tokenInput"
+          class="token-gate-input"
+          type="text"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          :placeholder="t('token.placeholder')"
+          @keyup.enter="submitToken"
+        />
+        <div v-if="tokenError" class="token-gate-error">{{ tokenError }}</div>
+        <button class="token-gate-btn" @click="submitToken">{{ t('token.submit') }}</button>
+      </div>
+    </div>
+
     <!-- 左侧:主机列表栏(可折叠) -->
     <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-inner">
@@ -136,7 +156,7 @@ import SFTPView from './components/SFTPView.vue'
 import RunView from './components/RunView.vue'
 import {
     listHosts, createSession, checkSessions, destroySession, updateSessionTitle,
-    isCredentialError, getPageTitle,
+    isCredentialError, getPageTitle, getToken, APIError,
 } from './utils/api'
 import { applyTheme, currentTheme, notifyThemeChange, type Theme } from './utils/theme'
 import { t } from './utils/i18n'
@@ -573,12 +593,43 @@ function showToast(message: string) {
     }, 4000)
 }
 
+// ── 访问令牌门禁 ──
+// 无 ?token=(或令牌失效 401)时弹出输入框;保存后重载页面。
+const tokenPromptOpen = ref(false)
+const tokenInput = ref('')
+const tokenError = ref('')
+
+function openTokenPrompt(message = '') {
+    tokenError.value = message
+    tokenPromptOpen.value = true
+}
+
+function submitToken() {
+    const tk = tokenInput.value.trim()
+    if (!tk) {
+        tokenError.value = t('token.invalid')
+        return
+    }
+    try {
+        sessionStorage.setItem('gossh.token', tk)
+    } catch {
+        // 忽略持久化失败
+    }
+    location.reload()
+}
+
 // ── 启动 ──
 const booting = ref(true)
 const bootError = ref('')
 
 onMounted(async () => {
     document.title = 'GoSSH'
+
+    if (!getToken()) {
+        // URL 没有令牌:直接引导输入,跳过会 401 的刷新
+        window.setTimeout(() => openTokenPrompt(), 100)
+        return
+    }
 
     await refreshHosts()
 
@@ -809,5 +860,78 @@ body {
     font-size: 13px;
     line-height: 1.5;
     word-break: break-word;
+}
+
+/* ── 访问令牌门禁 ── */
+.token-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.token-gate-card {
+    width: 420px;
+    max-width: calc(100vw - 40px);
+    background: var(--bg-panel, #161b22);
+    border: 1px solid var(--border-tab, #30363d);
+    border-radius: 8px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.token-gate-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--fg-bright, #e6edf3);
+}
+
+.token-gate-hint {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--fg-muted, #8b949e);
+}
+
+.token-gate-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-tab, #30363d);
+    background: var(--bg-input, #0d1117);
+    color: var(--fg-bright, #e6edf3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+}
+
+.token-gate-input:focus {
+    outline: none;
+    border-color: var(--accent, #58a6ff);
+}
+
+.token-gate-error {
+    font-size: 12px;
+    color: var(--err, #f85149);
+}
+
+.token-gate-btn {
+    align-self: flex-end;
+    padding: 6px 18px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent, #2f81f7);
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.token-gate-btn:hover {
+    filter: brightness(1.1);
 }
 </style>

@@ -23,6 +23,12 @@ const messages: Record<Lang, Record<string, string>> = {
         'tab.latency': '往返延迟(RTT),每 2 秒刷新',
         'tab.newHost': '新建主机',
         'tab.dragHint': '按住拖拽调整页签顺序',
+        // ── 访问令牌门禁 ──
+        'token.title': '需要访问令牌',
+        'token.hint': 'gossh serve 启动时会打印带令牌的完整 URL(如 http://127.0.0.1:8040/?token=xxx),把 token= 之后的部分粘贴到这里;令牌只保存在本会话的 sessionStorage。',
+        'token.placeholder': '粘贴访问令牌…',
+        'token.submit': '进入',
+        'token.invalid': '令牌不能为空或被拒绝,请核对服务端打印的 URL。',
         // ── 主机列表 ──
         'host.search': '搜索名称 / 地址 / 用户…',
         'host.empty': '暂无主机',
@@ -170,6 +176,12 @@ const messages: Record<Lang, Record<string, string>> = {
         'tab.latency': 'Round-trip latency (RTT), refreshed every 2s',
         'tab.newHost': 'New host',
         'tab.dragHint': 'Drag to reorder tabs',
+        // ── Access token gate ──
+        'token.title': 'Access token required',
+        'token.hint': 'gossh serve prints a token URL on startup (e.g. http://127.0.0.1:8040/?token=xxx); paste the part after token= here. The token lives only in this session\'s sessionStorage.',
+        'token.placeholder': 'Paste the access token…',
+        'token.submit': 'Enter',
+        'token.invalid': 'Token cannot be empty or was rejected; check the URL printed by the server.',
         // ── Host list ──
         'host.search': 'Search name / address / user…',
         'host.empty': 'No hosts yet',
