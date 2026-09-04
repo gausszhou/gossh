@@ -40,16 +40,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install UPX
-        run: |
-          curl -fsSL https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz \
-            | sudo tar -xJ --strip-components=1 -C /usr/local/bin upx-4.2.4-amd64_linux/upx
-
       - name: Install dependencies
         run: make install
 
       - name: Build all platforms
-        # make release 产出 5 平台矩阵 + sha256sums.txt(UPX 仅 linux)
+        # make release 产出 5 平台矩阵 + 各平台 tar.gz + sha256sums.txt
         run: make release
 
       - name: Verify binary
