@@ -22,6 +22,7 @@
         :collapsed="sidebarCollapsed"
         @open="(id) => (activeTabId = id)"
         @close="closeTab"
+        @reorder="onReorder"
         @settings="settingsOpen = true"
         @new-host="openHostForm(null)"
         @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"
@@ -143,6 +144,7 @@ import {
     loadManifest, upsertManifest, removeFromManifest, generateSessionID, type ManifestEntry,
 } from './utils/manifest'
 import { logger } from './utils/logger'
+import { loadTabOrder, saveTabOrder } from './utils/tabOrder'
 import type { AppTab, CredentialPayload, Host, StateDescription } from './utils/types'
 
 // ── 主题 / 设置 ──
@@ -195,7 +197,35 @@ function setViewRef(id: string, el: unknown) {
 
 function pushTab(tab: AppTab, activate = true) {
     tabs.value.push(tab)
+    applyTabOrder()
     if (activate) activeTabId.value = tab.id
+}
+
+// ── 页签顺序(拖拽排序,localStorage 持久化) ──
+// gotty 同款语义:已知顺序的页签按 gossh.tabOrder 排列,
+// 未记录顺序的新页签按创建序追加在末尾。
+const tabOrder = ref<string[]>(loadTabOrder())
+
+// pushTab / 外部恢复页签后按持久化顺序重排;unknown 保持相对创建序
+function applyTabOrder() {
+    if (!tabOrder.value.length) return
+    const known = tabs.value
+        .filter((t) => tabOrder.value.includes(t.id))
+        .sort((a, b) => tabOrder.value.indexOf(a.id) - tabOrder.value.indexOf(b.id))
+    const unknown = tabs.value.filter((t) => !tabOrder.value.includes(t.id))
+    tabs.value = [...known, ...unknown]
+}
+
+// TabBar emit('reorder', from, to):与 gotty onDrop 相同的移动公式
+function onReorder(from: number, to: number) {
+    if (from === -1 || from === to || from >= tabs.value.length) return
+    const next = [...tabs.value]
+    const [moved] = next.splice(from, 1)
+    next.splice(from < to ? to - 1 : to, 0, moved)
+    tabs.value = next
+    tabOrder.value = next.map((t) => t.id)
+    saveTabOrder(tabOrder.value)
+    logger.info('app', 'tabs reordered, saved %d entries', tabOrder.value.length)
 }
 
 // ── SSH 页签 ──

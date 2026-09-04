@@ -22,6 +22,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'tab.settings': '打开设置',
         'tab.latency': '往返延迟(RTT),每 2 秒刷新',
         'tab.newHost': '新建主机',
+        'tab.dragHint': '按住拖拽调整页签顺序',
         // ── 主机列表 ──
         'host.search': '搜索名称 / 地址 / 用户…',
         'host.empty': '暂无主机',
@@ -168,6 +169,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'tab.settings': 'Open settings',
         'tab.latency': 'Round-trip latency (RTT), refreshed every 2s',
         'tab.newHost': 'New host',
+        'tab.dragHint': 'Drag to reorder tabs',
         // ── Host list ──
         'host.search': 'Search name / address / user…',
         'host.empty': 'No hosts yet',

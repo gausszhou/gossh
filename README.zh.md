@@ -17,7 +17,8 @@ gossh serve
 ## 特性
 
 - **主机清单**:CRUD、分组、搜索、`via` 跳板链(任意深度,ProxyJump 语义)
-- **多会话页签**:SSH 会话 / SFTP 浏览 / 单命令执行结果三类页签并存
+- **多会话页签**:SSH 会话 / SFTP 浏览 / 单命令执行结果三类页签并存,
+  页签可左右拖拽排序,顺序按设备持久化(localStorage `gossh.tabOrder`)
 - **凭据**:私钥文件路径引用、ssh-agent、密码;密码与密钥口令经系统 keyring
   (Linux Secret Service / macOS Keychain / Windows Credential Manager)加密保存,
   无 keyring 守护进程时自动回退为内存保存

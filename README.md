@@ -24,7 +24,8 @@ the process.
 - **Host inventory**: create/update/delete, groups, search, and `via`
   jump chains of arbitrary depth (ProxyJump semantics)
 - **Multi-session tabs**: SSH sessions, SFTP browsing and single-command
-  execution results side by side
+  execution results side by side; drag tabs to reorder, order persisted
+  per device in localStorage (`gossh.tabOrder`)
 - **Credentials**: private key paths, ssh-agent, or passwords; passwords
   and key passphrases are stored encrypted in the system keyring
   (Linux Secret Service / macOS Keychain / Windows Credential Manager),
