@@ -2,7 +2,7 @@
 #
 # gossh 一键安装脚本
 #
-#   curl -fsSL https://raw.githubusercontent.com/gausszhou/gossh/master/scripts/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/gausszhou/gossh/main/scripts/install.sh | sh
 #   # 指定版本 / 安装前缀 / 镜像仓库:
 #   #   sh install.sh --version v0.0.1 --prefix ~/.local --repo owner/gossh
 #

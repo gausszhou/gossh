@@ -3,7 +3,7 @@ package api
 // Options configures the HTTP/WebSocket server.
 type Options struct {
 	Address     string `json:"address" flagName:"address" flagSName:"a" flagDescribe:"IP address to listen" default:"127.0.0.1"`
-	Port        string `json:"port" flagName:"port" flagSName:"p" flagDescribe:"Port number to listen" default:"9049"`
+	Port        string `json:"port" flagName:"port" flagSName:"p" flagDescribe:"Port number to listen" default:"8040"`
 	PermitWrite bool   `json:"permit_write" flagName:"permit-write" flagSName:"w" flagDescribe:"Permit clients to write to sessions (BE CAREFUL)" default:"true"`
 
 	TitleFormat     string `json:"title_format" flagName:"title-format" flagDescribe:"Title format of browser window" default:"GoSSH - {{ .name }}@{{ .addr }}"`

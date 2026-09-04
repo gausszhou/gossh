@@ -7,9 +7,9 @@
 
 ```
 gossh serve
-# HTTP server is listening at: http://127.0.0.1:9049
+# HTTP server is listening at: http://127.0.0.1:8040
 # Open the page with the access token:
-#   http://127.0.0.1:9049/?token=4f0a...
+#   http://127.0.0.1:8040/?token=4f0a...
 ```
 
 打开浏览器地址即可使用。整个服务只监听本机,令牌护体——私钥不出进程。
@@ -31,7 +31,7 @@ gossh serve
 ## 安装
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gausszhou/gossh/master/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/gausszhou/gossh/main/scripts/install.sh | sh
 # 选项:sh install.sh --version v0.0.1 --prefix ~/.local --repo owner/gossh
 ```
 
@@ -47,7 +47,7 @@ make release    # 五平台矩阵 + sha256sums.txt
 ### 服务
 
 ```sh
-gossh serve                          # 默认 127.0.0.1:9049,打印带令牌的 URL
+gossh serve                          # 默认 127.0.0.1:8040,打印带令牌的 URL
 gossh serve --port 0                 # 随机端口
 gossh serve --token my-token         # 固定令牌
 gossh serve --timeout 3600           # 断开会话存活时间(秒),0 = 永不淘汰

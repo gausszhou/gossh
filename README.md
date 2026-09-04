@@ -8,9 +8,9 @@ keyring.
 
 ```
 gossh serve
-# HTTP server is listening at: http://127.0.0.1:9049
+# HTTP server is listening at: http://127.0.0.1:8040
 # Open the page with the access token:
-#   http://127.0.0.1:9049/?token=4f0a...
+#   http://127.0.0.1:8040/?token=4f0a...
 ```
 
 Open the printed URL and you are in. The server only listens on
@@ -43,7 +43,7 @@ the process.
 ## Installation
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gausszhou/gossh/master/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/gausszhou/gossh/main/scripts/install.sh | sh
 # options: sh install.sh --version v0.0.1 --prefix ~/.local --repo owner/gossh
 ```
 
@@ -59,7 +59,7 @@ make release    # 5-platform matrix + sha256sums.txt
 ### Serve
 
 ```sh
-gossh serve                          # 127.0.0.1:9049 by default, prints the token URL
+gossh serve                          # 127.0.0.1:8040 by default, prints the token URL
 gossh serve --port 0                 # random port
 gossh serve --token my-token         # fixed token
 gossh serve --timeout 3600           # seconds a detached session survives (0 = never)
