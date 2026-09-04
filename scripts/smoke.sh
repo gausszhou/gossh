@@ -6,7 +6,7 @@
 set -euo pipefail
 
 BIN="${1:-./build/gossh}"
-PORT="${2:-19049}"
+PORT="${2:-18040}"
 DIR="$(mktemp -d)"
 TOKEN="smoketoken"
 HOSTID=""
