@@ -54,6 +54,15 @@
               <span class="form-label">{{ t('hostForm.credentialKeyPath') }}</span>
               <input v-model="draft.credential.key_path" class="form-input" type="text" spellcheck="false" placeholder="~/.ssh/id_ed25519" />
             </label>
+            <!-- 密码:default/password 方式可直接填,勾选保存到系统钥匙串 -->
+            <label v-if="draft.credential.kind === 'password' || draft.credential.kind === 'default'" class="form-field key-path-field">
+              <span class="form-label">{{ t('hostForm.password') }}</span>
+              <input v-model="draft.password" class="form-input" type="password" autocomplete="new-password" :placeholder="t('hostForm.passwordPlaceholder')" />
+              <label class="form-check">
+                <input v-model="draft.savePassword" type="checkbox" />
+                <span>{{ t('hostForm.savePassword') }}</span>
+              </label>
+            </label>
           </div>
 
           <!-- 跳板机 -->
@@ -122,6 +131,8 @@ interface Draft {
     group: string
     credential: { kind: CredentialKind; key_path: string }
     via: string
+    password: string
+    savePassword: boolean
 }
 
 function emptyDraft(): Draft {
@@ -133,6 +144,8 @@ function emptyDraft(): Draft {
         group: '',
         credential: { kind: 'default', key_path: '' },
         via: '',
+        password: '',
+        savePassword: false,
     }
 }
 
@@ -159,6 +172,8 @@ watch(
                     key_path: h.credential?.key_path || '',
                 },
                 via: h.via || '',
+                password: '',
+                savePassword: false,
             }
         } else {
             draft.value = emptyDraft()
@@ -194,7 +209,7 @@ async function save() {
 
     saving.value = true
     formError.value = ''
-    const payload: Host = {
+    const payload: Host & { password?: string; save_password?: boolean } = {
         id: props.host?.id || '',
         name: d.name.trim(),
         address: d.address.trim(),
@@ -209,6 +224,11 @@ async function save() {
         },
         via: d.via || undefined,
         forwards: props.host?.forwards || [],
+    }
+    // 服务端不会把密码写入 hosts.json;save_password=true 时存入系统 keyring
+    if (d.password) {
+        payload.password = d.password
+        payload.save_password = d.savePassword
     }
     try {
         if (props.host) {
@@ -229,6 +249,19 @@ async function save() {
 </script>
 
 <style scoped>
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    margin-top: 4px;
+}
+
+.form-check input[type='checkbox'] {
+    accent-color: var(--accent);
+}
 /* ── 弹窗布局(与设置弹窗同一视觉体系) ── */
 .modal-overlay {
     position: fixed;

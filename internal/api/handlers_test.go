@@ -333,8 +333,8 @@ func TestSiteEndpoints(t *testing.T) {
 func TestHostsCRUD(t *testing.T) {
 	ts, _, _ := newTestServer(t, nil)
 
-	// create
-	resp := doReq(t, ts, http.MethodPost, "/api/hosts", `{"name":"web","address":"10.0.0.5","user":"deploy"}`)
+	// create(可附带密码写入 keyring——不影响主机清单)
+	resp := doReq(t, ts, http.MethodPost, "/api/hosts", `{"name":"web","address":"10.0.0.5","user":"deploy","password":"pw","save_password":true}`)
 	var created *host.Host
 	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
 		t.Fatalf("decode: %s", err)

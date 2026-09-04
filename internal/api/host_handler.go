@@ -32,13 +32,23 @@ func (server *Server) handleListHosts(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, views)
 }
 
+// hostRequest 是 POST/PUT /api/hosts 的请求体:主机字段平铺,
+// 外加一次性的密码写入(keyring)。密码绝不进 hosts.json;
+// save_password=true 时在保存主机后把密码写入系统 keyring。
+type hostRequest struct {
+	host.Host
+	Password     *string `json:"password,omitempty"`
+	SavePassword bool    `json:"save_password,omitempty"`
+}
+
 // handleCreateHost implements POST /api/hosts.
 func (server *Server) handleCreateHost(w http.ResponseWriter, r *http.Request) {
-	var h host.Host
-	if err := json.NewDecoder(r.Body).Decode(&h); err != nil {
+	var req hostRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	h := req.Host
 	if h.ID == "" {
 		h.ID = host.NewID()
 	}
@@ -46,6 +56,7 @@ func (server *Server) handleCreateHost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	server.saveHostPassword(&req, &h)
 	log.Printf("Host added: %s (%s@%s)", h.Name, h.User, h.Addr())
 	writeJSON(w, http.StatusCreated, h)
 }
@@ -62,18 +73,33 @@ func (server *Server) handleGetHost(w http.ResponseWriter, r *http.Request) {
 
 // handleUpdateHost implements PUT /api/hosts/{id} (full replace).
 func (server *Server) handleUpdateHost(w http.ResponseWriter, r *http.Request) {
-	var h host.Host
-	if err := json.NewDecoder(r.Body).Decode(&h); err != nil {
+	var req hostRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	h := req.Host
 	h.ID = r.PathValue("id")
 	if err := server.inventory.Update(&h); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	server.saveHostPassword(&req, &h)
 	log.Printf("Host updated: %s", h.Name)
 	writeJSON(w, http.StatusOK, h)
+}
+
+// saveHostPassword 在请求携带密码且勾选保存时,把密码写入系统 keyring
+// (按 user@addr 键控,与连接时的 keyring 查询一致)。明文不进 hosts.json。
+func (server *Server) saveHostPassword(req *hostRequest, h *host.Host) {
+	if req == nil || req.Password == nil || *req.Password == "" || !req.SavePassword {
+		return
+	}
+	if err := server.secrets.SetPassword(h.Addr(), h.User, *req.Password); err != nil {
+		log.Printf("Failed to save password to keyring for %s@%s: %s", h.User, h.Addr(), err)
+		return
+	}
+	log.Printf("Password saved to keyring for %s@%s", h.User, h.Addr())
 }
 
 // handleDeleteHost implements DELETE /api/hosts/{id}.
