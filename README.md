@@ -1,4 +1,4 @@
-# gossh — an SSH client that lives in your browser
+# GoSSH — an SSH client that lives in your browser
 
 An SSH client built on the Go stack: a small local server runs on your
 machine and your browser **is** the terminal UI. Manage a host inventory,

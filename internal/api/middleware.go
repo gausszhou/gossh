@@ -35,7 +35,7 @@ func (server *Server) wrapLogger(handler http.Handler) http.Handler {
 func (server *Server) wrapHeaders(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// todo add version
-		w.Header().Set("Server", "gossh")
+		w.Header().Set("Server", "GoSSH")
 		handler.ServeHTTP(w, r)
 	})
 }

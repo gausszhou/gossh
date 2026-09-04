@@ -1,6 +1,6 @@
 # 用 Web UI 承载 SSH 会话管理,而非 TUI / 纯 CLI
 
-gossh 是一个 SSH 客户端,但其客户端 UI 是浏览器(Vue3 + xterm.js),而不是终端内全屏 TUI 或纯 `ssh` 式 CLI。本机跑一个 Go 服务端(listen 127.0.0.1),浏览器即客户端。
+GoSSH 是一个 SSH 客户端,但其客户端 UI 是浏览器(Vue3 + xterm.js),而不是终端内全屏 TUI 或纯 `ssh` 式 CLI。本机跑一个 Go 服务端(listen 127.0.0.1),浏览器即客户端。
 
 理由:
 - **多会话页签、列表、弹窗、文件浏览的 UI 成本**在浏览器里远比 TUI 低。xterm.js 提供与真实终端等价的渲染(WebGL、CJK、图形协议),Vue 组件化覆盖主机清单 CRUD、凭据输入、SFTP 浏览、转发面板等 TUI 需要手写的密集交互。

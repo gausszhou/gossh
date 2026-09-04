@@ -6,7 +6,7 @@ type Options struct {
 	Port        string `json:"port" flagName:"port" flagSName:"p" flagDescribe:"Port number to listen" default:"9049"`
 	PermitWrite bool   `json:"permit_write" flagName:"permit-write" flagSName:"w" flagDescribe:"Permit clients to write to sessions (BE CAREFUL)" default:"true"`
 
-	TitleFormat     string `json:"title_format" flagName:"title-format" flagDescribe:"Title format of browser window" default:"gossh - {{ .name }}@{{ .addr }}"`
+	TitleFormat     string `json:"title_format" flagName:"title-format" flagDescribe:"Title format of browser window" default:"GoSSH - {{ .name }}@{{ .addr }}"`
 	EnableReconnect bool   `json:"enable_reconnect" flagName:"reconnect" flagDescribe:"Enable reconnection" default:"true"`
 	ReconnectTime   int    `json:"reconnect_time" flagName:"reconnect-time" flagDescribe:"Time to reconnect" default:"10"`
 

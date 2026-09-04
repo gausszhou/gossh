@@ -156,7 +156,7 @@ function onThemeSelect(next: Theme) {
 }
 
 function onPageTitleSaved(title: string) {
-    document.title = title || 'gossh'
+    document.title = title || 'GoSSH'
 }
 
 // ── 主机清单 ──
@@ -548,7 +548,7 @@ const booting = ref(true)
 const bootError = ref('')
 
 onMounted(async () => {
-    document.title = 'gossh'
+    document.title = 'GoSSH'
 
     await refreshHosts()
 

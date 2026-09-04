@@ -1,4 +1,4 @@
-# gossh 会话管理器
+# GoSSH 会话管理器
 
 一个基于 Go 技术栈的 SSH 客户端：本地运行 Go 服务端，浏览器（Vue3 + xterm.js）作为客户端 UI。用户维护主机清单，在浏览器中建立 SSH 会话、以页签管理多个并行会话；支持凭据管理、单命令执行、文件传输、端口转发与跳板机连接。工程底座整体搬迁自同为 MIT 的 gotty 项目（`internal/api → internal/session → internal/terminal` 分层与前端页签模型），本上下文覆盖 gossh 独有的领域：SSH 会话、主机、凭据、连接链。
 
