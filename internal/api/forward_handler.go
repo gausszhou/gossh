@@ -209,6 +209,22 @@ func (server *Server) startForward(sessionID string, kind ForwardKind, bind, tar
 	return entry, nil
 }
 
+// applyHostForwards 将会话建立后自动应用主机记录里配置的持久转发
+// (host.Forwards)。单个失败不阻断会话,仅记录日志。
+func (server *Server) applyHostForwards(sessionID, hostID string) {
+	h, err := server.inventory.Get(hostID)
+	if err != nil || h == nil {
+		return
+	}
+	for _, f := range h.Forwards {
+		if _, ferr := server.startForward(sessionID, ForwardKind(f.Kind), f.Bind, f.Target); ferr != nil {
+			log.Printf("Failed to apply host forward %s %s->%s on %s: %s", f.Kind, f.Bind, f.Target, sessionID, ferr)
+			continue
+		}
+		log.Printf("Applied host forward on %s: %s %s -> %s", sessionID, f.Kind, f.Bind, f.Target)
+	}
+}
+
 // handleListForwards implements GET /api/sessions/{id}/forwards.
 func (server *Server) handleListForwards(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, server.forwards.list(r.PathValue("id")))

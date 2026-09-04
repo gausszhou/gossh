@@ -89,6 +89,11 @@ func (server *Server) handleCreateSession(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// 自动应用主机记录里配置的持久端口转发(配置在主机侧,连上即生效)
+	if created {
+		server.applyHostForwards(sess.ID(), spec.HostID)
+	}
+
 	// 连接成功后按需把秘密存入 keyring
 	if req.SavePassword && req.Password != nil && *req.Password != "" {
 		if hpErr := server.savePasswordFor(req.HostID, *req.Password); hpErr != nil {

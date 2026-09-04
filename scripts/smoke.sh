@@ -64,19 +64,34 @@ FID=$(curl -s -X POST "$API/api/sessions/$SESSION/forwards" "${H[@]}" \
 BANNER=$(timeout 2 bash -c 'exec 3<>/dev/tcp/127.0.0.1/18099; head -c 20 <&3' 2>/dev/null || true)
 [[ "$BANNER" == SSH-2.0-* ]]
 
-echo "== 7. keys injection =="
+echo "== 7. host-level forward auto-apply =="
+# 主机记录附持久转发;同 id 幂等命中已有会话不会重放,故用独立会话 id 验证
+curl -s -X PUT "$API/api/hosts/$HOSTID" "${H[@]}" \
+  -d "{\"id\":\"$HOSTID\",\"name\":\"local\",\"address\":\"127.0.0.1\",\"port\":22,\"user\":\"$USER\",\"credential\":{\"kind\":\"key\",\"key_path\":\"$KEY\"},\"forwards\":[{\"kind\":\"local\",\"bind\":\"127.0.0.1:18100\",\"target\":\"localhost:22\"}]}" \
+  | python3 -c 'import json,sys; d=json.load(sys.stdin); assert len(d.get("forwards",[]))==1'
+FSID="bbbbbbbbbbbbbbbb"
+curl -s -X POST "$API/api/sessions" "${H[@]}" \
+  -d "{\"host_id\":\"$HOSTID\",\"id\":\"$FSID\"}" | python3 -c 'import json,sys; assert json.load(sys.stdin)["id"]=="bbbbbbbbbbbbbbbb"'
+sleep 0.3
+curl -s "$API/api/sessions/$FSID/forwards" "${H[@]}" \
+  | python3 -c 'import json,sys; fs=json.load(sys.stdin); assert any(f["bind"]=="127.0.0.1:18100" for f in fs), fs'
+HBANNER=$(timeout 2 bash -c 'exec 3<>/dev/tcp/127.0.0.1/18100; head -c 20 <&3' 2>/dev/null || true)
+[[ "$HBANNER" == SSH-2.0-* ]]
+curl -s -o /dev/null -w '%{http_code}' -X DELETE "$API/api/sessions/$FSID" "${H[@]}" | grep -q 204
+
+echo "== 8. keys injection =="
 curl -s -X POST "$API/api/sessions/$SESSION/keys" "${H[@]}" -d '{"input":"echo INJECTED\r"}' | grep -q '"written"'
 sleep 0.6
 curl -s "$API/api/sessions/$SESSION/screen?format=text" "${H[@]}" | grep -q INJECTED
 
-echo "== 8. lifecycle: destroy + resurrect =="
+echo "== 9. lifecycle: destroy + resurrect =="
 curl -s -o /dev/null -w '%{http_code}' -X DELETE "$API/api/sessions/$SESSION" "${H[@]}" | grep -q 204
 curl -s -X POST "$API/api/sessions" "${H[@]}" -d "{\"id\":\"$SESSION\"}" | grep -q '"state":"idle"'
 
-echo "== 9. known-hosts manage =="
+echo "== 10. known-hosts manage =="
 curl -s "$API/api/known-hosts" "${H[@]}" | grep -q "127.0.0.1:22"
 
-echo "== 10. clean up session =="
+echo "== 11. clean up session =="
 curl -s -o /dev/null -w '%{http_code}' -X DELETE "$API/api/sessions/$SESSION" "${H[@]}" | grep -q 204
 
 echo
