@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 全量克隆:make release 的版本号来自 git describe --tags,
+          # 默认 fetch-depth:1 不含 tag 引用会导致版本回退为兜底值
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
