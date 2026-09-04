@@ -261,11 +261,14 @@ func signalToSSH(sig syscall.Signal) ssh.Signal {
 		return ssh.SIGTERM
 	case syscall.SIGKILL:
 		return ssh.SIGKILL
-	case syscall.SIGUSR1:
-		return ssh.SIGUSR1
-	case syscall.SIGUSR2:
-		return ssh.SIGUSR2
 	default:
+		if sig, ok := sigusrExtra(sig); ok {
+			return sig
+		}
 		return ssh.SIGHUP
 	}
 }
+
+// sigusrExtra maps the non-cross-platform SIGUSR1/2 (defined only on
+// Unix) to their ssh signals. Implemented per-platform: see
+// sigusr_unix.go / sigusr_windows.go.
