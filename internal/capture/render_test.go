@@ -44,7 +44,7 @@ func TestHTMLBasic(t *testing.T) {
 	write(t, e, "\x1b[31mR\x1b[0m&<")
 	got := HTML(e.Screen())
 	for _, want := range []string{
-		`<pre class="gotty-capture">`,
+		`<pre class="gossh-capture">`,
 		`<span style="color:#cd0000">R</span>`,
 		"&amp;&lt;", // 转义
 		"</pre>",
