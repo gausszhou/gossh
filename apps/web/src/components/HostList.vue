@@ -40,11 +40,8 @@
               <button class="act-btn act-primary" :title="t('host.act.connect')" @click="emit('connect', h)">
                 {{ t('host.act.connect') }}
               </button>
-              <button class="act-btn" :title="t('host.act.run')" @click="emit('run', h)">
-                {{ t('host.act.run') }}
-              </button>
-              <button class="act-btn" :title="t('host.act.sftp')" @click="emit('sftp', h)">
-                {{ t('host.act.sftp') }}
+              <button class="act-btn" :title="t('host.act.forwards')" @click="emit('forwards', h)">
+                ⇄ {{ t('host.act.forwards') }}
               </button>
               <button class="act-btn" :title="t('host.act.edit')" @click="emit('edit', h)">
                 {{ t('host.act.edit') }}
@@ -82,8 +79,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'connect', host: Host): void
-    (e: 'run', host: Host): void
-    (e: 'sftp', host: Host): void
+    (e: 'forwards', host: Host): void
     (e: 'edit', host: Host): void
     // 已确认删除(列表内两段式确认);App 调 API 后刷新
     (e: 'delete', host: Host): void

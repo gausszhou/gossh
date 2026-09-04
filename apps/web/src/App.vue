@@ -26,8 +26,7 @@
         <HostList
           :hosts="hosts"
           @connect="connectHost"
-          @run="openRunModal"
-          @sftp="sftpHost"
+          @forwards="openHostForwards"
           @edit="editHost"
           @delete="refreshHosts"
         />
@@ -38,11 +37,14 @@
     <aside v-if="activeSshTab" class="sftp-panel" :class="{ collapsed: sftpPanelCollapsed }">
       <div class="sftp-panel-header">
         <span class="sftp-panel-title">📁 {{ activeSshTab.hostLabel || activeSshTab.title }}</span>
-        <button
+        <span class="sftp-panel-actions">
+          <button class="sftp-panel-run" :title="t('host.act.run')" @click="runHostOfActiveWorkbench">▶</button>
+          <button
           class="sftp-panel-toggle"
           :title="sftpPanelCollapsed ? t('sftp.expand') : t('sftp.collapse')"
           @click="sftpPanelCollapsed = !sftpPanelCollapsed"
         >{{ sftpPanelCollapsed ? '◂' : '▸' }}</button>
+        </span>
       </div>
       <div v-if="!sftpPanelCollapsed" class="sftp-panel-body">
         <SFTPView :session-id="activeSshTab.sessionId!" :active="true" :key="activeSshTab.sessionId" />
@@ -145,6 +147,14 @@
       @theme="onThemeSelect"
       @title-saved="onPageTitleSaved"
     />
+
+    <!-- 主机级端口转发管理(持久定义,连上即生效) -->
+    <HostForwardsModal
+      v-if="hostForwardsHost"
+      :host="hostForwardsHost"
+      @close="hostForwardsHost = null"
+      @saved="onHostForwardsSaved"
+    />
   </div>
 </template>
 
@@ -156,6 +166,7 @@ import HostFormModal from './components/HostFormModal.vue'
 import RunModal from './components/RunModal.vue'
 import CredentialsModal from './components/CredentialsModal.vue'
 import ForwardModal from './components/ForwardModal.vue'
+import HostForwardsModal from './components/HostForwardsModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import SshView from './components/SshView.vue'
 import SFTPView from './components/SFTPView.vue'
@@ -296,21 +307,6 @@ async function connectHost(host: Host) {
 }
 
 // ── SFTP 流程:绑定存活会话(无则静默创建) ──
-async function sftpHost(host: Host) {
-    logger.info('app', 'open sftp workbench host=%s (%s)', host.id, host.name)
-    // 已有存活会话 → 激活其页签,中栏 SFTP 随活动 SSH 会话自动出现
-    const existing = await findAliveSessionForHost(host.id)
-    if (existing) {
-        const tab = tabs.value.find((t) => t.kind === 'ssh' && t.sessionId === existing)
-        if (tab) {
-            activeTabId.value = tab.id
-            return
-        }
-    }
-    // 无会话 → 建立连接(connectHost 处理凭据弹窗),成功后中栏自动出现
-    await connectHost(host)
-}
-
 async function findAliveSessionForHost(hostId: string): Promise<string | null> {
     // 已打开的 SSH 页签(存活)
     for (const tab of tabs.value) {
@@ -580,6 +576,26 @@ function showToast(message: string) {
     toastTimer = setTimeout(() => {
         toast.value = ''
     }, 4000)
+}
+
+// 中栏 ▶ 运行命令:针对当前工作区主机
+function runHostOfActiveWorkbench() {
+    const tab = activeSshTab.value
+    if (!tab?.hostId) return
+    const host = hosts.value.find((h) => h.id === tab.hostId)
+    if (host) openRunModal(host)
+}
+
+// ── 主机级端口转发(持久定义,会话连接时自动应用) ──
+const hostForwardsHost = ref<Host | null>(null)
+
+function openHostForwards(host: Host) {
+    hostForwardsHost.value = host
+}
+
+async function onHostForwardsSaved() {
+    hostForwardsHost.value = null
+    await refreshHosts()
 }
 
 // ── SFTP 中栏(绑定活动 SSH 会话,三栏布局) ──

@@ -39,6 +39,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'host.act.connect': '连接',
         'host.act.run': '运行',
         'host.act.sftp': 'SFTP',
+        'host.act.forwards': '转发',
         'host.act.edit': '编辑',
         'host.act.delete': '删除',
         'host.act.confirmDelete': '确认删除?',
@@ -78,7 +79,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'cred.busy': '正在连接…',
         // ── 页签内容 ──
         'empty.title': '打开一个主机会话',
-        'empty.hint': '从左侧主机列表选择「连接 / SFTP / 运行命令」',
+        'empty.hint': '从左侧主机列表选择主机,点「连接」打开会话',
         'empty.loading': '正在连接…',
         'dialog.gone': '会话已销毁',
         'dialog.lost': '连接已断开',
@@ -146,6 +147,11 @@ const messages: Record<Lang, Record<string, string>> = {
         'fwd.listTitle': '当前转发',
         'fwd.addFailed': '添加失败',
         'fwd.required': '填写绑定地址(以及目标)',
+        // ── 主机级端口转发(持久定义,连上即生效) ──
+        'hostForwards.title': '主机端口转发',
+        'hostForwards.listTitle': '连接时自动应用',
+        'hostForwards.hint': '保存后,每次连接该主机自动生效;单个转发失败不阻断连接。',
+        'hostForwards.saveFailed': '保存失败',
         // ── 设置 ──
         'settings.open': '打开设置',
         'settings.title': '设置',
@@ -197,6 +203,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'host.act.connect': 'Connect',
         'host.act.run': 'Run',
         'host.act.sftp': 'SFTP',
+        'host.act.forwards': 'Forwards',
         'host.act.edit': 'Edit',
         'host.act.delete': 'Delete',
         'host.act.confirmDelete': 'Confirm?',
@@ -236,7 +243,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'cred.busy': 'Connecting…',
         // ── Tab content ──
         'empty.title': 'Open a host session',
-        'empty.hint': 'Pick a host on the left: Connect / SFTP / Run command',
+        'empty.hint': 'Pick a host on the left and click Connect',
         'empty.loading': 'Connecting…',
         'dialog.gone': 'Session closed',
         'dialog.lost': 'Connection lost',
@@ -304,6 +311,11 @@ const messages: Record<Lang, Record<string, string>> = {
         'fwd.listTitle': 'Active forwards',
         'fwd.addFailed': 'Failed to add',
         'fwd.required': 'Fill in the bind address (and target)',
+        // ── Host-level port forwards (persistent, applied on connect) ──
+        'hostForwards.title': 'Host port forwards',
+        'hostForwards.listTitle': 'Applied automatically on connect',
+        'hostForwards.hint': 'Applied every time you connect to this host; a failing forward does not block the connection.',
+        'hostForwards.saveFailed': 'Failed to save',
         // ── Settings ──
         'settings.open': 'Open settings',
         'settings.title': 'Settings',
