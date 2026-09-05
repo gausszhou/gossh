@@ -25,10 +25,7 @@ the process.
   jump chains of arbitrary depth (ProxyJump semantics)
 - **Multi-session tabs**: SSH sessions side by side; drag tabs to
   reorder, order persisted per device in localStorage (`gossh.tabOrder`)
-- **Single-command run** (compile-time optional): `gossh run <host>
   '<command>'` (exit codes pass through) and browser run-result tabs.
-  **Disabled in default builds** — enable with `make build RUN=1`
-  (Go `-tags run` + frontend `VITE_ENABLE_RUN=1`)
 - **SFTP** (compile-time optional): browse/transfer files over the session
   connection. **Disabled in default builds** to keep the binary lean —
   enable with `make build SFTP=1` (Go `-tags sftp` + frontend
@@ -45,8 +42,6 @@ the process.
   [ADR 0007](docs/adr/0007-host-forwards-resident.md))
 - **Detach-surviving sessions**: closing or refreshing the browser does
   not kill the SSH session; it idles out (default 900s) before teardown
-- **One-shot commands**: `gossh run <host> '<cmd>'` without a browser,
-  plus an in-browser entry point
 - **One binary**: the frontend is embedded via `go:embed`; cross-compiles
   with no Node runtime required
 - **Desktop mode (Linux)**: `gossh app` stays resident in the system tray
@@ -129,7 +124,6 @@ gossh hosts add --name prod --address 10.0.0.5 --user root --key ~/.ssh/id_ed255
 gossh hosts add --name bastion --address 1.2.3.4 --user ops
 gossh hosts list
 gossh hosts rm prod
-gossh run prod 'uptime && df -h'     # exit codes pass through; works headless
 gossh version
 ```
 
@@ -149,7 +143,7 @@ gossh version
 ## Architecture
 
 ```
-internal/api        HTTP/WS routing, token, hosts/SFTP/forwards/run handlers
+internal/api        HTTP/WS routing, token, hosts/SFTP/forwards handlers
 internal/session    session registry and lifecycle (idempotent create,
                     preemption, idle expiry — ported from gotty)
 internal/terminal   browser binary frame protocol ("webtty", ported from gotty)
@@ -166,11 +160,11 @@ See `docs/adr/` (0001–0005) and `CONTEXT.md` (domain glossary).
 
 ```sh
 make install   # pnpm install
-make build     # frontend + static + ./build/gossh (SFTP/run 默认关闭)
-make build SFTP=1 RUN=1    # 启用 SFTP 与单命令执行(Go tags + VITE_* 同源)
+make build     # frontend + static + ./build/gossh (SFTP 默认关闭)
+make build SFTP=1   # 启用 SFTP(Go -tags sftp + VITE_ENABLE_SFTP=1)
 make test      # go vet + gofmt + go test (including core tests ported from gotty)
 make release   # linux/amd64+arm64, darwin/amd64+arm64, windows/amd64
-scripts/smoke.sh   # end-to-end smoke against a local sshd (SFTP/run 步骤按编译开关跳过)
+scripts/smoke.sh   # end-to-end smoke against a local sshd (SFTP 步骤按编译开关跳过)
 ```
 
 ## License

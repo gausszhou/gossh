@@ -55,18 +55,6 @@ export interface Host {
 // GET /api/hosts/{id}/parents 返回:跳板 id 数组(最近者优先)。
 export type HostParents = string[]
 
-// POST /api/run 的返回体。
-export interface RunResult {
-    host_id: string
-    name: string
-    command: string
-    output: string
-    exit_code: number // -1 = 未正常退出(超时/网络)
-    error?: string
-    duration_ms: number
-    host_key_ok: boolean // false → 本次运行首次信任(TOFU)
-}
-
 // GET /api/known-hosts 的单条记录。
 export interface KnownHost {
     addr: string
@@ -96,13 +84,13 @@ export interface ForwardEntry {
 
 // ── 前端页签模型 ──
 
-export type TabKind = 'ssh' | 'sftp' | 'run'
+export type TabKind = 'ssh' | 'sftp'
 
 export interface AppTab {
     id: string // 页签唯一 id:ssh → 会话 id;其它 → 前缀 + 序号
     kind: TabKind
     title: string
-    // ssh/sftp 绑定会话;run 无
+    // ssh/sftp 会话绑定
     sessionId?: string
     hostId?: string
     hostName?: string
@@ -110,13 +98,12 @@ export interface AppTab {
     // ssh 专属:存活状态(status 轮询)与 WS 附着状态
     alive?: boolean
     connected?: boolean
-    // run 专属:执行结果(页签打开后不再变)
-    run?: RunResult
+    latency?: number // ssh 专属:最近一次 ping 往返(ms)
     command?: string
     createdAt: number
 }
 
-// 凭据弹窗提交载荷(POST /api/sessions 或 /api/run 的重试参数)。
+// 凭据弹窗提交载荷(会话连接的重试参数)。
 export interface CredentialPayload {
     password?: string
     passphrase?: string

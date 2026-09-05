@@ -64,10 +64,10 @@ const emit = defineEmits<{
     (e: 'toggle-sidebar'): void
 }>()
 
-// sftp/run 页签的小徽标(ssh 用状态圆点,不用徽标)
+// sftp 页签的小徽标(ssh 用状态圆点,不用徽标)
 function kindLabel(kind: AppTab['kind']): string {
     if (kind === 'sftp') return t('sftp.tabSuffix')
-    return t('run.tabSuffix')
+    return ''
 }
 
 function stateClass(tab: AppTab): string {
@@ -253,7 +253,7 @@ onBeforeUnmount(() => {
     background: var(--dot-dead);
 }
 
-/* sftp / run 页签的类型徽标 */
+/* sftp 页签的类型徽标 */
 .kind-badge {
     flex: 0 0 auto;
     font-size: 10px;
@@ -266,10 +266,6 @@ onBeforeUnmount(() => {
 
 .kind-sftp {
     color: #58a6ff;
-}
-
-.kind-run {
-    color: #d29922;
 }
 
 .tab-close {

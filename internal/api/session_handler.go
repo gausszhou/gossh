@@ -14,8 +14,7 @@ import (
 )
 
 // savePasswordFor stores the password for the host's user@addr in the
-// keyring (the browser "save to keyring" checkbox). 与 run 特性无关,
-// 会话连接与单命令执行共用,故放本文件(不随 -tags run 编译)。
+// keyring (the browser "save to keyring" checkbox); 会话连接时调用。
 func (server *Server) savePasswordFor(hostID, password string) error {
 	h, err := server.inventory.Get(hostID)
 	if err != nil {

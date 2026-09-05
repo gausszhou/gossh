@@ -19,9 +19,6 @@ gossh serve
 - **主机清单**:CRUD、分组、搜索、`via` 跳板链(任意深度,ProxyJump 语义)
 - **多会话页签**:SSH 会话页签可左右拖拽排序,顺序按设备持久化
   (localStorage `gossh.tabOrder`)
-- **单命令执行**(编译期可选):`gossh run <host> '<cmd>'`(退出码直通)与
-  浏览器运行结果页签。**默认构建不编译**——`make build RUN=1` 启用
-  (`-tags run` + 前端 `VITE_ENABLE_RUN=1`)
 - **SFTP**(编译期可选):在会话连接上浏览/传输文件。**默认构建不编译**
   以保持二进制精简——`make build SFTP=1` 启用(Go `-tags sftp` + 前端
   `VITE_ENABLE_SFTP=1`,Makefile 已同源接线)
@@ -33,7 +30,6 @@ gossh serve
   转发连接上,**不随会话生灭**——关终端页签/销毁会话转发仍在
   (见 [ADR 0007](docs/adr/0007-host-forwards-resident.md))
 - **断开存活**:浏览器断开或刷新,SSH 会话继续存活,空闲超时(默认 900s)后销毁
-- **单命令执行**:`gossh run <host> '<cmd>'` 无浏览器直跑,浏览器内也有入口
 - **单二进制交付**:前端经 `go:embed` 内嵌,跨平台编译无需 Node 运行时
 - **桌面形态(Linux)**:`gossh app` 托盘常驻、开机自启、单实例;自动开浏览器并
   注入令牌;Release 附带免安装的 AppImage
@@ -105,7 +101,6 @@ gossh hosts add --name prod --address 10.0.0.5 --user root --key ~/.ssh/id_ed255
 gossh hosts add --name bastion --address 1.2.3.4 --user ops
 gossh hosts list
 gossh hosts rm prod
-gossh run prod 'uptime && df -h'     # 退出码透传;无浏览器可用
 gossh version
 ```
 
@@ -120,7 +115,7 @@ gossh version
 ## 架构
 
 ```
-internal/api        HTTP/WS 路由、令牌、主机/SFTP/转发/run 处理器
+internal/api        HTTP/WS 路由、令牌、主机/SFTP/转发处理器
 internal/session    会话注册表与生命周期(幂等创建、抢占、空闲淘汰,搬迁自 gotty)
 internal/terminal   浏览器二进制帧协议(webtty,搬迁自 gotty)
 internal/sshtty     session.Terminal 的 SSH 实现(远端 PTY shell)
@@ -135,11 +130,11 @@ apps/web            Vue3 + Vite + xterm.js(页签/列表/SFTP)
 
 ```sh
 make install   # pnpm install
-make build     # 前端 + static + ./build/gossh(SFTP/run 默认关闭)
-make build SFTP=1 RUN=1    # 启用 SFTP 与单命令执行(Go tags + VITE_* 同源)
+make build     # 前端 + static + ./build/gossh(SFTP 默认关闭)
+make build SFTP=1   # 启用 SFTP(Go -tags sftp + VITE_ENABLE_SFTP=1)
 make test      # go vet + gofmt + go test(含搬迁自 gotty 的核心测试)
 make release   # linux/amd64+arm64, darwin/amd64+arm64, windows/amd64
-scripts/smoke.sh   # 对本地 sshd 的端到端冒烟(SFTP/run 步骤按编译开关跳过)
+scripts/smoke.sh   # 对本地 sshd 的端到端冒烟(SFTP 步骤按编译开关跳过)
 ```
 
 ## 许可

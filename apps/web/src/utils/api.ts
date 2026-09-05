@@ -6,7 +6,7 @@
 // 服务端只按 id 提供:创建(幂等/复活)、详情、状态批量查询、销毁。
 import { logger } from './logger'
 import type {
-    Host, HostParents, KnownHost, RunResult, SftpEntry, StateDescription, ForwardEntry,
+    Host, HostParents, KnownHost, SftpEntry, StateDescription, ForwardEntry,
 } from './types'
 
 const TOKEN_KEY = 'gossh.token'
@@ -208,37 +208,6 @@ export async function deleteHost(id: string): Promise<void> {
 // hostParents 取得跳板 id 链(最近者优先)。
 export async function hostParents(id: string): Promise<HostParents> {
     return fetchJSON<HostParents>(`/api/hosts/${encodeURIComponent(id)}/parents`)
-}
-
-// ── 单命令执行 ──
-
-export interface RunRequest {
-    host_id: string
-    command: string
-    args?: string[]
-    password?: string
-    passphrase?: string
-    save_password?: boolean
-    save_passphrase?: boolean
-    timeout_ms?: number // 0 = 服务端默认 60s;-1 = 不限时
-}
-
-export async function runCommand(req: RunRequest): Promise<RunResult> {
-    const body: Record<string, unknown> = {
-        host_id: req.host_id,
-        command: req.command,
-    }
-    if (req.args && req.args.length > 0) body.args = req.args
-    if (req.password !== undefined && req.password !== '') body.password = req.password
-    if (req.passphrase !== undefined && req.passphrase !== '') body.passphrase = req.passphrase
-    if (req.save_password) body.save_password = true
-    if (req.save_passphrase) body.save_passphrase = true
-    if (typeof req.timeout_ms === 'number' && req.timeout_ms !== 0) body.timeout_ms = req.timeout_ms
-    return fetchJSON<RunResult>('/api/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    })
 }
 
 // ── 已知主机密钥(TOFU trust store) ──

@@ -175,7 +175,6 @@ installed: $BINDIR/$BIN ($TAG)
 使用:
   gossh serve            # 启动并打印带令牌的 URL,浏览器打开即用
   gossh hosts add ...    # 添加主机(或浏览器里填表)
-  gossh run <host> 'cmd' # 无浏览器执行单命令
 
 PATH 已注册到 $BASHRC,新开终端即生效;当前终端手动生效:
   source ~/.bashrc

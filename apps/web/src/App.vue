@@ -38,16 +38,15 @@
       <div class="sftp-panel-header">
         <span class="sftp-panel-title">📁 {{ activeSshTab.hostLabel || activeSshTab.title }}</span>
         <span class="sftp-panel-actions">
-          <button v-if="RUN_ENABLED" class="sftp-panel-run" :title="t('host.act.run')" @click="runHostOfActiveWorkbench">▶</button>
           <button
-          class="sftp-panel-toggle"
-          :title="sftpPanelCollapsed ? t('sftp.expand') : t('sftp.collapse')"
-          @click="sftpPanelCollapsed = !sftpPanelCollapsed"
-        >{{ sftpPanelCollapsed ? '◂' : '▸' }}</button>
+            class="sftp-panel-toggle"
+            :title="sftpPanelCollapsed ? t('sftp.expand') : t('sftp.collapse')"
+            @click="sftpPanelCollapsed = !sftpPanelCollapsed"
+          >{{ sftpPanelCollapsed ? '◂' : '▸' }}</button>
         </span>
       </div>
       <div v-if="!sftpPanelCollapsed" class="sftp-panel-body">
-        <SFTPView :session-id="activeSshTab.sessionId!" :active="true" :key="activeSshTab.sessionId" />
+        <SFTPView :session-id="activeSshTab.sessionId!" :host-name="activeSshTab.hostLabel || activeSshTab.hostName || ''" :active="true" :key="activeSshTab.sessionId" />
       </div>
     </aside>
 
@@ -83,13 +82,6 @@
             @credential-required="(msg) => onPaneCredentialRequired(tab, msg)"
             @forwards="openForwardModal(tab)"
           />
-          <RunView
-            v-else-if="RUN_ENABLED && tab.kind === 'run'"
-            v-show="tab.id === activeTabId"
-            :ref="(el) => setViewRef(tab.id, el)"
-            :run="tab.run!"
-            :active="tab.id === activeTabId"
-          />
         </template>
 
         <!-- 空态 -->
@@ -120,13 +112,6 @@
       :hosts="hosts"
       @close="hostFormOpen = false"
       @saved="onHostSaved"
-    />
-    <RunModal
-      v-if="RUN_ENABLED"
-      :open="runModalOpen"
-      :host="runModalHost"
-      @close="runModalOpen = false"
-      @run="onRunDone"
     />
     <CredentialsModal
       :open="credOpen"
@@ -169,17 +154,11 @@ import ForwardModal from './components/ForwardModal.vue'
 import HostForwardsModal from './components/HostForwardsModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import SshView from './components/SshView.vue'
-// 特性面板按编译期开关懒加载(与后端 build tags 同源,见 utils/features.ts
-// 与 Makefile SFTP/RUN):禁用时组件为 null,模板侧已加 RUN_ENABLED/SFTP_ENABLED 门控
-import { SFTP_ENABLED, RUN_ENABLED } from './utils/features'
+// SFTP 面板按编译期开关懒加载(与后端 -tags sftp 同源,见 utils/features.ts
+// 与 Makefile SFTP):禁用时组件为 null,模板侧已加 SFTP_ENABLED 门控
+import { SFTP_ENABLED } from './utils/features'
 const SFTPView = SFTP_ENABLED
     ? defineAsyncComponent(() => import('./components/SFTPView.vue'))
-    : null
-const RunModal = RUN_ENABLED
-    ? defineAsyncComponent(() => import('./components/RunModal.vue'))
-    : null
-const RunView = RUN_ENABLED
-    ? defineAsyncComponent(() => import('./components/RunView.vue'))
     : null
 import {
     listHosts, createSession, checkSessions, destroySession, updateSessionTitle,
@@ -339,32 +318,6 @@ async function findAliveSessionForHost(hostId: string): Promise<string | null> {
     return null
 }
 
-
-// ── 运行命令流程 ──
-const runModalOpen = ref(false)
-const runModalHost = ref<Host | null>(null)
-
-function openRunModal(host: Host) {
-    if (!RUN_ENABLED) return
-    runModalHost.value = host
-    runModalOpen.value = true
-}
-
-function onRunDone(result: import('./utils/types').RunResult) {
-    runModalOpen.value = false
-    const host = runModalHost.value
-    const title = host ? `${host.name} · ${t('run.tabSuffix')}` : `${t('run.tabSuffix')} ${result.host_id}`
-    pushTab({
-        id: `run-${++tabSeq}`,
-        kind: 'run',
-        title,
-        hostId: result.host_id,
-        hostName: result.name,
-        run: result,
-        command: result.command,
-        createdAt: Date.now(),
-    })
-}
 
 // ── 凭据弹窗 ──
 interface PendingConnectCred {
@@ -587,14 +540,6 @@ function showToast(message: string) {
     toastTimer = setTimeout(() => {
         toast.value = ''
     }, 4000)
-}
-
-// 中栏 ▶ 运行命令:针对当前工作区主机
-function runHostOfActiveWorkbench() {
-    const tab = activeSshTab.value
-    if (!tab?.hostId) return
-    const host = hosts.value.find((h) => h.id === tab.hostId)
-    if (host) openRunModal(host)
 }
 
 // ── 主机级端口转发(持久定义,会话连接时自动应用) ──

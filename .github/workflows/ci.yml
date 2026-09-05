@@ -50,7 +50,7 @@ jobs:
       - name: Verify binary runs
         run: ./build/gossh version
 
-      - name: Verify SFTP/run tagged build compiles
-        # SFTP/RUN 默认关闭(-tags sftp,run 才启用);这里保证启用变体始终
-        # 可编译,避免 handler/子命令在默认构建下长期不被编译而腐化
-        run: CGO_ENABLED=0 go build -trimpath -tags sftp,run -o /dev/null .
+      - name: Verify SFTP-tagged build compiles
+        # SFTP 默认关闭(-tags sftp 才启用);这里保证启用变体始终可编译,
+        # 避免 sftp_handler.go 在默认构建下长期不被编译而腐化
+        run: CGO_ENABLED=0 go build -trimpath -tags sftp -o /dev/null .
