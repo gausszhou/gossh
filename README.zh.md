@@ -21,10 +21,10 @@ gossh serve
   (localStorage `gossh.tabOrder`)
 - **单命令执行**(编译期可选):`gossh run <host> '<cmd>'`(退出码直通)与
   浏览器运行结果页签。**默认构建不编译**——`make build RUN=1` 启用
-  (`-tags run` + 前端 `VITE_RUN=1`)
+  (`-tags run` + 前端 `VITE_ENABLE_RUN=1`)
 - **SFTP**(编译期可选):在会话连接上浏览/传输文件。**默认构建不编译**
   以保持二进制精简——`make build SFTP=1` 启用(Go `-tags sftp` + 前端
-  `VITE_SFTP=1`,Makefile 已同源接线)
+  `VITE_ENABLE_SFTP=1`,Makefile 已同源接线)
 - **凭据**:私钥文件路径引用、ssh-agent、密码;密码与密钥口令经系统 keyring
   (Linux Secret Service / macOS Keychain / Windows Credential Manager)加密保存,
   无 keyring 守护进程时自动回退为内存保存

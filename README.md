@@ -28,11 +28,11 @@ the process.
 - **Single-command run** (compile-time optional): `gossh run <host>
   '<command>'` (exit codes pass through) and browser run-result tabs.
   **Disabled in default builds** — enable with `make build RUN=1`
-  (Go `-tags run` + frontend `VITE_RUN=1`)
+  (Go `-tags run` + frontend `VITE_ENABLE_RUN=1`)
 - **SFTP** (compile-time optional): browse/transfer files over the session
   connection. **Disabled in default builds** to keep the binary lean —
   enable with `make build SFTP=1` (Go `-tags sftp` + frontend
-  `VITE_SFTP=1`, wired together in the Makefile)
+  `VITE_ENABLE_SFTP=1`, wired together in the Makefile)
 - **Credentials**: private key paths, ssh-agent, or passwords; passwords
   and key passphrases are stored encrypted in the system keyring
   (Linux Secret Service / macOS Keychain / Windows Credential Manager),

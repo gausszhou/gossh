@@ -5,8 +5,8 @@ VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 2
 LDFLAGS    := -X github.com/gausszhou/gossh/cmd.Version=$(VERSION) -X github.com/gausszhou/gossh/cmd.CommitID=$(GIT_COMMIT)
 
 # 特性编译开关(默认全部关闭,=1 启用):
-#   SFTP —— 文件传输(Go -tags sftp / 前端 VITE_SFTP=1)
-#   RUN  —— 单命令执行 `gossh run` 与 POST /api/run(Go -tags run / 前端 VITE_RUN=1)
+#   SFTP —— 文件传输(Go -tags sftp / 前端 VITE_ENABLE_SFTP=1)
+#   RUN  —— 单命令执行 `gossh run` 与 POST /api/run(Go -tags run / 前端 VITE_ENABLE_RUN=1)
 # 默认构建保持精简:不编入 pkg/sftp 与 run 处理器/子命令;前端同步隐藏对应 UI。
 SFTP ?= 0
 RUN  ?= 0
@@ -15,8 +15,8 @@ empty :=
 space := $(empty) $(empty)
 GO_TAGS := $(strip $(if $(filter 1,$(SFTP)),sftp) $(if $(filter 1,$(RUN)),run))
 BUILD_TAGS := $(if $(GO_TAGS),-tags "$(subst $(space),$(comma),$(GO_TAGS))",)
-VITE_SFTP := $(if $(filter 1,$(SFTP)),1,0)
-VITE_RUN  := $(if $(filter 1,$(RUN)),1,0)
+VITE_ENABLE_SFTP := $(if $(filter 1,$(SFTP)),1,0)
+VITE_ENABLE_RUN  := $(if $(filter 1,$(RUN)),1,0)
 
 # 构建矩阵:资产命名 gossh-{os}-{arch}[.exe],与 install.sh / self update 的
 # 映射保持一致;windows 输出 .exe。压缩交给 tar.gz 打包(gzip 对未压缩
@@ -68,9 +68,9 @@ install:
 	pnpm install
 
 # Build frontend: Vite + Vue 3 + xterm.js v5 + WebGL (apps/web)
-# VITE_SFTP / VITE_RUN 编译期决定对应 UI(与后端特性开关同源)
+# VITE_ENABLE_SFTP / VITE_ENABLE_RUN 编译期决定对应 UI(与后端特性开关同源)
 frontend:
-	VITE_SFTP=$(VITE_SFTP) VITE_RUN=$(VITE_RUN) pnpm --filter gotty-frontend build
+	VITE_ENABLE_SFTP=$(VITE_ENABLE_SFTP) VITE_ENABLE_RUN=$(VITE_ENABLE_RUN) pnpm --filter gotty-frontend build
 
 # docs removed (VitePress site) — see README.md
 
