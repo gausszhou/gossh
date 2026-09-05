@@ -325,14 +325,8 @@ func (server *Server) setupHandlers() http.Handler {
 	apiMux.HandleFunc("POST /api/secrets", server.handleSetSecret)
 	apiMux.HandleFunc("DELETE /api/secrets", server.handleDeleteSecret)
 
-	// REST API — session-scoped SFTP (same ssh connection as the session)
-	apiMux.HandleFunc("GET /api/sessions/{id}/sftp/ls", server.handleSFTPList)
-	apiMux.HandleFunc("GET /api/sessions/{id}/sftp/stat", server.handleSFTPStat)
-	apiMux.HandleFunc("POST /api/sessions/{id}/sftp/mkdir", server.handleSFTPMkdir)
-	apiMux.HandleFunc("POST /api/sessions/{id}/sftp/rename", server.handleSFTPRename)
-	apiMux.HandleFunc("POST /api/sessions/{id}/sftp/remove", server.handleSFTPRemove)
-	apiMux.HandleFunc("GET /api/sessions/{id}/sftp/download", server.handleSFTPDownload)
-	apiMux.HandleFunc("POST /api/sessions/{id}/sftp/upload", server.handleSFTPUpload)
+	// REST API — session-scoped SFTP (同一会话连接;默认构建不含,SFTP=1 开启)
+	server.registerSFTPRoutes(apiMux)
 
 	// REST API — session-scoped port forwards
 	apiMux.HandleFunc("GET /api/sessions/{id}/forwards", server.handleListForwards)

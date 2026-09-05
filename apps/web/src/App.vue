@@ -33,8 +33,8 @@
       </div>
     </aside>
 
-    <!-- 中间:SFTP 文件列表(绑定当前活动 SSH 会话,自动开启) -->
-    <aside v-if="activeSshTab" class="sftp-panel" :class="{ collapsed: sftpPanelCollapsed }">
+    <!-- 中间:SFTP 文件列表(绑定当前活动 SSH 会话,自动开启;SFTP_ENABLED 编译期门控) -->
+    <aside v-if="SFTP_ENABLED && activeSshTab" class="sftp-panel" :class="{ collapsed: sftpPanelCollapsed }">
       <div class="sftp-panel-header">
         <span class="sftp-panel-title">📁 {{ activeSshTab.hostLabel || activeSshTab.title }}</span>
         <span class="sftp-panel-actions">
@@ -159,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref } from 'vue'
 import TabBar from './components/TabBar.vue'
 import HostList from './components/HostList.vue'
 import HostFormModal from './components/HostFormModal.vue'
@@ -169,7 +169,12 @@ import ForwardModal from './components/ForwardModal.vue'
 import HostForwardsModal from './components/HostForwardsModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import SshView from './components/SshView.vue'
-import SFTPView from './components/SFTPView.vue'
+// SFTP 面板按编译期开关加载:VITE_SFTP=1 时懒加载组件,否则不参与渲染
+// (与后端 -tags sftp 同源,见 utils/features.ts 与 Makefile SFTP)
+import { SFTP_ENABLED } from './utils/features'
+const SFTPView = SFTP_ENABLED
+    ? defineAsyncComponent(() => import('./components/SFTPView.vue'))
+    : null
 import RunView from './components/RunView.vue'
 import {
     listHosts, createSession, checkSessions, destroySession, updateSessionTitle,

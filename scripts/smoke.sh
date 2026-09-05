@@ -55,7 +55,13 @@ sleep 0.5
 curl -s "$API/api/sessions/$SESSION/screen?format=text" "${H[@]}" | grep -q .   # 非空(MOTD/prompt)
 
 echo "== 5. SFTP over the session =="
-curl -s "$API/api/sessions/$SESSION/sftp/ls?path=/tmp" "${H[@]}" | python3 -c 'import json,sys; assert isinstance(json.load(sys.stdin), list)'
+# SFTP 默认不编译进二进制(-tags sftp 才有);端点 404 则跳过该步骤
+if curl -s -o /dev/null -w '%{http_code}' "$API/api/sessions/$SESSION/sftp/ls?path=/tmp" "${H[@]}" | grep -q 200; then
+  curl -s "$API/api/sessions/$SESSION/sftp/ls?path=/tmp" "${H[@]}" | python3 -c 'import json,sys; assert isinstance(json.load(sys.stdin), list)'
+  echo "   (sftp 已编译,已验证)"
+else
+  echo "   (sftp 未编译进二进制,跳过)"
+fi
 
 echo "== 6. local port forward =="
 FID=$(curl -s -X POST "$API/api/sessions/$SESSION/forwards" "${H[@]}" \

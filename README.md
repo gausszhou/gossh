@@ -23,9 +23,13 @@ the process.
 
 - **Host inventory**: create/update/delete, groups, search, and `via`
   jump chains of arbitrary depth (ProxyJump semantics)
-- **Multi-session tabs**: SSH sessions, SFTP browsing and single-command
+- **Multi-session tabs**: SSH sessions and single-command
   execution results side by side; drag tabs to reorder, order persisted
   per device in localStorage (`gossh.tabOrder`)
+- **SFTP** (compile-time optional): browse/transfer files over the session
+  connection. **Disabled in default builds** to keep the binary lean —
+  enable with `make build SFTP=1` (Go `-tags sftp` + frontend
+  `VITE_SFTP=1`, wired together in the Makefile)
 - **Credentials**: private key paths, ssh-agent, or passwords; passwords
   and key passphrases are stored encrypted in the system keyring
   (Linux Secret Service / macOS Keychain / Windows Credential Manager),
@@ -159,10 +163,11 @@ See `docs/adr/` (0001–0005) and `CONTEXT.md` (domain glossary).
 
 ```sh
 make install   # pnpm install
-make build     # frontend + static + ./build/gossh
+make build     # frontend + static + ./build/gossh (SFTP 默认关闭)
+make build SFTP=1   # 同左,启用 SFTP(Go -tags sftp + VITE_SFTP=1)
 make test      # go vet + gofmt + go test (including core tests ported from gotty)
 make release   # linux/amd64+arm64, darwin/amd64+arm64, windows/amd64
-scripts/smoke.sh   # end-to-end smoke against a local sshd
+scripts/smoke.sh   # end-to-end smoke against a local sshd (SFTP 步骤按编译开关跳过)
 ```
 
 ## License
