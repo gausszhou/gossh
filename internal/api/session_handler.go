@@ -84,7 +84,6 @@ func (server *Server) handleCreateSession(w http.ResponseWriter, r *http.Request
 			spec.Name = h.Name
 			spec.Addr = h.Addr()
 			spec.User = h.User
-			spec.Group = h.Group
 		} else {
 			writeError(w, http.StatusBadRequest, "unknown host_id")
 			return

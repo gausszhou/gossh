@@ -28,10 +28,9 @@ var (
 // host in the inventory, not a local process.
 type ConnectSpec struct {
 	HostID string `json:"host_id"`
-	Name   string `json:"name"`            // display name (host record name)
-	Addr   string `json:"addr,omitempty"`  // canonical host:port
-	User   string `json:"user,omitempty"`  // remote user
-	Group  string `json:"group,omitempty"` // inventory group
+	Name   string `json:"name"`           // display name (host record name)
+	Addr   string `json:"addr,omitempty"` // canonical host:port
+	User   string `json:"user,omitempty"` // remote user
 }
 
 // TerminalFactory creates a session Terminal for a connect spec.

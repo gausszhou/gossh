@@ -21,7 +21,7 @@ the process.
 
 ## Features
 
-- **Host inventory**: create/update/delete, groups, search
+- **Host inventory**: create/update/delete
 - **Multi-session tabs**: SSH sessions side by side; drag tabs to
   reorder, order persisted per device in localStorage (`gossh.tabOrder`)
   '<command>'` (exit codes pass through) and browser run-result tabs.

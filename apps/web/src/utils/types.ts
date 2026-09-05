@@ -10,7 +10,6 @@ export interface ConnectSpec {
     name: string
     addr?: string
     user?: string
-    group?: string
 }
 
 // POST /api/sessions 的返回体(StateDescription)。
@@ -43,7 +42,6 @@ export interface Host {
     address: string
     port?: number
     user: string
-    group?: string
     credential: Credential
     forwards?: HostForward[]
     created_at?: number

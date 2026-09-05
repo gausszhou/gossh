@@ -32,10 +32,6 @@
               <span class="form-label">{{ t('hostForm.user') }} *</span>
               <input v-model="draft.user" class="form-input" type="text" spellcheck="false" />
             </label>
-            <label class="form-field">
-              <span class="form-label">{{ t('hostForm.group') }}</span>
-              <input v-model="draft.group" class="form-input" type="text" spellcheck="false" />
-            </label>
           </div>
 
           <!-- 凭据:方式单选 -->
@@ -111,7 +107,6 @@ interface Draft {
     address: string
     port: number | undefined
     user: string
-    group: string
     credential: { kind: CredentialKind; key_path: string }
     password: string
     savePassword: boolean
@@ -123,7 +118,6 @@ function emptyDraft(): Draft {
         address: '',
         port: undefined,
         user: '',
-        group: '',
         credential: { kind: 'default', key_path: '' },
         password: '',
         savePassword: false,
@@ -147,7 +141,6 @@ watch(
                 address: h.address || '',
                 port: h.port || undefined,
                 user: h.user || '',
-                group: h.group || '',
                 credential: {
                     kind: h.credential?.kind || 'default',
                     key_path: h.credential?.key_path || '',
@@ -195,7 +188,6 @@ async function save() {
         address: d.address.trim(),
         port: d.port,
         user: d.user.trim(),
-        group: d.group.trim() || undefined,
         credential: {
             kind: d.credential.kind,
             ...(d.credential.kind === 'key' && d.credential.key_path

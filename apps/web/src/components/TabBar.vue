@@ -6,7 +6,7 @@
         class="icon-btn"
         :title="collapsed ? t('host.expand') : t('host.collapse')"
         @click="emit('toggle-sidebar')"
-      >{{ collapsed ? '▸' : '◂' }}</button>
+      ><ChevronsRight v-if="collapsed" :size="14" /><ChevronsLeft v-else :size="14" /></button>
     </div>
 
     <div
@@ -44,6 +44,7 @@
 
 <script setup lang="ts">
 import { ref, onBeforeUnmount } from 'vue'
+import { ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
 import { t } from '../utils/i18n'
 import { logger } from '../utils/logger'
 import type { AppTab } from '../utils/types'

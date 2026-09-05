@@ -65,7 +65,6 @@ type Host struct {
 	Address    string     `json:"address"`
 	Port       int        `json:"port,omitempty"`
 	User       string     `json:"user"`
-	Group      string     `json:"group,omitempty"`
 	Credential Credential `json:"credential"`
 	Forwards   []Forward  `json:"forwards,omitempty"`
 	CreatedAt  int64      `json:"created_at"`

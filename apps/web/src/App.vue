@@ -42,7 +42,7 @@
             class="sftp-panel-toggle"
             :title="sftpPanelCollapsed ? t('sftp.expand') : t('sftp.collapse')"
             @click="sftpPanelCollapsed = !sftpPanelCollapsed"
-          >{{ sftpPanelCollapsed ? '◂' : '▸' }}</button>
+          ><ChevronsRight v-if="sftpPanelCollapsed" :size="14" /><ChevronsLeft v-else :size="14" /></button>
         </span>
       </div>
       <div v-if="!sftpPanelCollapsed" class="sftp-panel-body">
@@ -146,6 +146,7 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref } from 'vue'
+import { ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
 import TabBar from './components/TabBar.vue'
 import HostList from './components/HostList.vue'
 import HostFormModal from './components/HostFormModal.vue'

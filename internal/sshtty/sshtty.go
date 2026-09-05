@@ -237,10 +237,9 @@ func (t *Tty) Args() []string { return []string{t.host.Addr()} }
 // WindowTitleVariables exposes host fields to the title template.
 func (t *Tty) WindowTitleVariables() map[string]interface{} {
 	return map[string]interface{}{
-		"host":  t.host.Name,
-		"addr":  t.host.Addr(),
-		"user":  t.host.User,
-		"group": t.host.Group,
+		"host": t.host.Name,
+		"addr": t.host.Addr(),
+		"user": t.host.User,
 	}
 }
 
