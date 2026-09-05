@@ -37,6 +37,18 @@ curl -fsSL https://raw.githubusercontent.com/gausszhou/gossh/main/scripts/instal
 # 选项:sh install.sh --version v0.0.1 --prefix ~/.local --repo owner/gossh
 ```
 
+脚本流程(所有平台一致):检测 OS/架构 → 下载平台压缩包(tar.gz)并校验 sha256 →
+解压二进制到 `~/.local/bin` → 把该目录**幂等**写入 `~/.bashrc`
+(同一行已存在则跳过,可安全重复执行)→ 提示 `source ~/.bashrc` 生效。
+
+Windows 原生 PowerShell 安装(与 install.sh 同流程,注册 PATH 到 PowerShell
+配置而非 .bashrc):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+# 选项:-Version v0.0.1 -Prefix D:\tools -Repo owner/gossh
+```
+
 或源码构建(Go 1.26+,前端构建需 Node 18+ / pnpm):
 
 ```sh

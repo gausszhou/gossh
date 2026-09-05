@@ -52,6 +52,20 @@ curl -fsSL https://raw.githubusercontent.com/gausszhou/gossh/main/scripts/instal
 # options: sh install.sh --version v0.0.1 --prefix ~/.local --repo owner/gossh
 ```
 
+The script runs the same flow on every platform: detect OS/arch → download the
+platform archive (tar.gz) and verify its sha256 → extract the binary to
+`~/.local/bin` → **idempotently** append that dir to `~/.bashrc` (skips when
+the same line already exists, so re-runs are safe) → prompt
+`source ~/.bashrc` to take effect.
+
+Native Windows PowerShell installer (same flow; registers PATH in the
+PowerShell profile instead of `.bashrc`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+# options: -Version v0.0.1 -Prefix D:\tools -Repo owner/gossh
+```
+
 or build from source (Go 1.26+; a frontend build needs Node 18+ / pnpm):
 
 ```sh

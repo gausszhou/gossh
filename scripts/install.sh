@@ -152,6 +152,20 @@ fi
 chmod +x "$BINARY" || true   # Git Bash 下对 .exe 执行 chmod 可能是 no-op
 mv -f "$BINARY" "$BINDIR/$BIN"
 
+# --- 4. PATH 注册到 ~/.bashrc(幂等:同一行已存在则跳过) ------------------
+BASHRC="${HOME}/.bashrc"
+LINE="export PATH=\"${BINDIR}:\$PATH\""
+if grep -qsF -- "$LINE" "$BASHRC" 2>/dev/null; then
+    echo "PATH 已注册:$LINE(已存在于 $BASHRC,跳过)"
+else
+    if printf '\n# gossh: 安装目录加入 PATH\n%s\n' "$LINE" >> "$BASHRC" 2>/dev/null; then
+        echo "已把 $LINE 写入 $BASHRC"
+    else
+        echo "warning: 无法写入 $BASHRC,请手动添加:$LINE" >&2
+    fi
+fi
+
+# --- 5. 提示生效 ----------------------------------------------------------
 "$BINDIR/$BIN" version
 
 cat <<EOF
@@ -163,6 +177,6 @@ installed: $BINDIR/$BIN ($TAG)
   gossh hosts add ...    # 添加主机(或浏览器里填表)
   gossh run <host> 'cmd' # 无浏览器执行单命令
 
-若 $BINDIR 不在 PATH,可加(bash / Git Bash):
-  export PATH="$BINDIR:\$PATH"
+PATH 已注册到 $BASHRC,新开终端即生效;当前终端手动生效:
+  source ~/.bashrc
 EOF
