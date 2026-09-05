@@ -65,14 +65,17 @@ static: frontend
 	cp apps/web/dist/main.js internal/api/static/main.js
 	cp apps/web/dist/favicon.png internal/api/static/favicon.png
 
+# vet/test 固定 CGO_ENABLED=0:desktop 的 cgo 托盘(linux && cgo)需要
+# libayatana-appindicator3 头文件,无头文件的机器/CI 上 vet/test 会失败;
+# nocgo 桩与所有单测均不依赖 cgo,发布构建(AppImage)走独立 cgo 步骤。
 test: vet fmt
-	go test ./...
+	CGO_ENABLED=0 go test ./...
 
 # 浏览器引擎端到端测试(需本机有 Chrome/Chromium;CI 不跑,见 ci.yml)
 # test-browser removed (browser e2e trimmed)
 
 vet:
-	go vet ./...
+	CGO_ENABLED=0 go vet ./...
 
 fmt:
 	@test -z "$$(gofmt -l .)" || (echo "gofmt errors:"; gofmt -l .; exit 1)
