@@ -95,16 +95,10 @@ func fillAddr(spec string) string {
 	return "127.0.0.1:" + spec
 }
 
-// startForward launches one forward on the session's ssh connection.
-func (server *Server) startForward(sessionID string, kind ForwardKind, bind, target string) (*ForwardEntry, error) {
-	sess, err := server.manager.Get(sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("session not found")
-	}
-	client, err := sess.SSHClient()
-	if err != nil {
-		return nil, fmt.Errorf("session has no ssh connection")
-	}
+// launchOnClient 在任意一条 ssh 连接上启动一个端口转发并返回其条目。
+// 会话级转发(startForward)与主机级转发(ForwardHostManager)共用本逻辑,
+// 区别只在转发的归属与连接的来源。
+func (server *Server) launchOnClient(client *ssh.Client, kind ForwardKind, bind, target string) (*ForwardEntry, error) {
 	bind = fillAddr(bind)
 
 	entry := &ForwardEntry{
@@ -205,24 +199,26 @@ func (server *Server) startForward(sessionID string, kind ForwardKind, bind, tar
 		return nil, fmt.Errorf("unknown forward kind: %s", kind)
 	}
 
-	server.forwards.add(sessionID, entry)
 	return entry, nil
 }
 
-// applyHostForwards 将会话建立后自动应用主机记录里配置的持久转发
-// (host.Forwards)。单个失败不阻断会话,仅记录日志。
-func (server *Server) applyHostForwards(sessionID, hostID string) {
-	h, err := server.inventory.Get(hostID)
-	if err != nil || h == nil {
-		return
+// startForward launches one forward on the session's ssh connection and
+// registers it in the session-scoped registry (会话级转发,随会话生灭)。
+func (server *Server) startForward(sessionID string, kind ForwardKind, bind, target string) (*ForwardEntry, error) {
+	sess, err := server.manager.Get(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("session not found")
 	}
-	for _, f := range h.Forwards {
-		if _, ferr := server.startForward(sessionID, ForwardKind(f.Kind), f.Bind, f.Target); ferr != nil {
-			log.Printf("Failed to apply host forward %s %s->%s on %s: %s", f.Kind, f.Bind, f.Target, sessionID, ferr)
-			continue
-		}
-		log.Printf("Applied host forward on %s: %s %s -> %s", sessionID, f.Kind, f.Bind, f.Target)
+	client, err := sess.SSHClient()
+	if err != nil {
+		return nil, fmt.Errorf("session has no ssh connection")
 	}
+	entry, err := server.launchOnClient(client, kind, bind, target)
+	if err != nil {
+		return nil, err
+	}
+	server.forwards.add(sessionID, entry)
+	return entry, nil
 }
 
 // handleListForwards implements GET /api/sessions/{id}/forwards.

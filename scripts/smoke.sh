@@ -64,20 +64,25 @@ FID=$(curl -s -X POST "$API/api/sessions/$SESSION/forwards" "${H[@]}" \
 BANNER=$(timeout 2 bash -c 'exec 3<>/dev/tcp/127.0.0.1/18099; head -c 20 <&3' 2>/dev/null || true)
 [[ "$BANNER" == SSH-2.0-* ]]
 
-echo "== 7. host-level forward auto-apply =="
-# 主机记录附持久转发;同 id 幂等命中已有会话不会重放,故用独立会话 id 验证
+echo "== 7. host-level forward 常驻(独立转发连接,ADR-0007) =="
+# 主机记录附持久转发;会话建立触发 ensure 拉起主机转发连接(独立于会话)
 curl -s -X PUT "$API/api/hosts/$HOSTID" "${H[@]}" \
   -d "{\"id\":\"$HOSTID\",\"name\":\"local\",\"address\":\"127.0.0.1\",\"port\":22,\"user\":\"$USER\",\"credential\":{\"kind\":\"key\",\"key_path\":\"$KEY\"},\"forwards\":[{\"kind\":\"local\",\"bind\":\"127.0.0.1:18100\",\"target\":\"localhost:22\"}]}" \
   | python3 -c 'import json,sys; d=json.load(sys.stdin); assert len(d.get("forwards",[]))==1'
 FSID="bbbbbbbbbbbbbbbb"
 curl -s -X POST "$API/api/sessions" "${H[@]}" \
   -d "{\"host_id\":\"$HOSTID\",\"id\":\"$FSID\"}" | python3 -c 'import json,sys; assert json.load(sys.stdin)["id"]=="bbbbbbbbbbbbbbbb"'
-sleep 0.3
-curl -s "$API/api/sessions/$FSID/forwards" "${H[@]}" \
-  | python3 -c 'import json,sys; fs=json.load(sys.stdin); assert any(f["bind"]=="127.0.0.1:18100" for f in fs), fs'
+sleep 0.5
+# 主机级转发出现在主机自己的转发列表(会话转发列表不再包含它)
+curl -s "$API/api/hosts/$HOSTID/forwards" "${H[@]}" \
+  | python3 -c 'import json,sys; fs=json.load(sys.stdin); assert any(f["bind"]=="127.0.0.1:18100" and f["status"]=="running" for f in fs), fs'
 HBANNER=$(timeout 2 bash -c 'exec 3<>/dev/tcp/127.0.0.1/18100; head -c 20 <&3' 2>/dev/null || true)
 [[ "$HBANNER" == SSH-2.0-* ]]
+# 常驻核心语义:销毁会话后转发仍存活
 curl -s -o /dev/null -w '%{http_code}' -X DELETE "$API/api/sessions/$FSID" "${H[@]}" | grep -q 204
+sleep 0.3
+HBANNER2=$(timeout 2 bash -c 'exec 3<>/dev/tcp/127.0.0.1/18100; head -c 20 <&3' 2>/dev/null || true)
+[[ "$HBANNER2" == SSH-2.0-* ]]
 
 echo "== 8. keys injection =="
 curl -s -X POST "$API/api/sessions/$SESSION/keys" "${H[@]}" -d '{"input":"echo INJECTED\r"}' | grep -q '"written"'

@@ -84,6 +84,8 @@ func (server *Server) handleUpdateHost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	// 主机配置变更(含 forwards)立即同步到常驻转发连接(ADR-0007)
+	server.forwardHosts.reconcile(h.ID)
 	server.saveHostPassword(&req, &h)
 	log.Printf("Host updated: %s", h.Name)
 	writeJSON(w, http.StatusOK, h)
@@ -109,6 +111,8 @@ func (server *Server) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	// 主机删除时释放其常驻转发连接与转发(ADR-0007)
+	server.forwardHosts.release(id)
 	log.Printf("Host removed: %s", id)
 	w.WriteHeader(http.StatusNoContent)
 }

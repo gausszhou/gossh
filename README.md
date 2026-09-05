@@ -32,7 +32,10 @@ the process.
   falling back to in-memory only when no keyring daemon is available
 - **Host keys**: TOFU trust management (`~/.gossh/known_hosts`); a
   changed key refuses the connection
-- **Port forwards**: local / remote / dynamic (SOCKS5)
+- **Port forwards**: local / remote / dynamic (SOCKS5); host-level
+  forwards run on a dedicated per-host forward connection, outliving any
+  interactive session (session close does not drop them, see
+  [ADR 0007](docs/adr/0007-host-forwards-resident.md))
 - **Detach-surviving sessions**: closing or refreshing the browser does
   not kill the SSH session; it idles out (default 900s) before teardown
 - **One-shot commands**: `gossh run <host> '<cmd>'` without a browser,

@@ -42,6 +42,9 @@ type Server struct {
 
 	forwards *ForwardRegistry
 
+	// forwardHosts 管理主机级转发的独立连接与运行时(ADR-0007)
+	forwardHosts *ForwardHostManager
+
 	activeConns sync.Map // *websocket.Conn -> struct{}
 	wsWG        sync.WaitGroup
 }
@@ -85,8 +88,36 @@ func New(manager *session.Manager, options *Options, inventory *host.Inventory, 
 		wsOriginMatcher: originMatcher,
 		forwards:        NewForwardRegistry(),
 	}
+	// 主机级转发管理器:转发挂在主机专属转发连接上,不随会话生灭(ADR-0007)
+	server.forwardHosts = NewForwardHostManager(
+		server.dialHostForward,
+		server.launchOnClient,
+		func(hostID string) []host.Forward {
+			h, err := server.inventory.Get(hostID)
+			if err != nil || h == nil {
+				return nil
+			}
+			return h.Forwards
+		},
+	)
 	manager.WithTerminalFactory(server.dialFactory)
 	return server, nil
+}
+
+// dialHostForward 建立主机级转发连接:与 session 拨号同一条链路
+// (连接链 + TOFU + 凭据解析),但不开 PTY——连接只承载端口转发。
+func (server *Server) dialHostForward(hostID string, prov *sshx.ProvidedSecrets) (*sshx.DialResult, error) {
+	chain, err := server.inventory.Chain(hostID)
+	if err != nil {
+		return nil, err
+	}
+	hops, err := sshx.BuildHops(chain, server.secrets, prov, server.knownHosts, server.connectTimeout())
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), server.chainTimeout(len(hops)))
+	defer cancel()
+	return sshx.DialChain(ctx, hops)
 }
 
 // Token returns the effective access token (used by the CLI to print
@@ -242,6 +273,9 @@ func (server *Server) Run(ctx context.Context, options ...RunOption) error {
 		err = ctx.Err()
 	}
 
+	// 释放全部主机级转发连接(端口监听随之后台进程退出关闭)
+	server.forwardHosts.closeAll()
+
 	return err
 }
 
@@ -278,6 +312,7 @@ func (server *Server) setupHandlers() http.Handler {
 	apiMux.HandleFunc("PUT /api/hosts/{id}", server.handleUpdateHost)
 	apiMux.HandleFunc("DELETE /api/hosts/{id}", server.handleDeleteHost)
 	apiMux.HandleFunc("GET /api/hosts/{id}/parents", server.handleHostParents)
+	apiMux.HandleFunc("GET /api/hosts/{id}/forwards", server.handleListHostForwards)
 
 	// REST API — single-command execution
 	apiMux.HandleFunc("POST /api/run", server.handleRun)

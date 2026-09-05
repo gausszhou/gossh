@@ -23,7 +23,9 @@ gossh serve
   (Linux Secret Service / macOS Keychain / Windows Credential Manager)加密保存,
   无 keyring 守护进程时自动回退为内存保存
 - **主机密钥**:TOFU 信任管理(`~/.gossh/known_hosts`),指纹变更即拒绝连接
-- **端口转发**:local / remote / dynamic(SOCKS5)
+- **端口转发**:local / remote / dynamic(SOCKS5);主机级转发跑在主机专属的
+  转发连接上,**不随会话生灭**——关终端页签/销毁会话转发仍在
+  (见 [ADR 0007](docs/adr/0007-host-forwards-resident.md))
 - **断开存活**:浏览器断开或刷新,SSH 会话继续存活,空闲超时(默认 900s)后销毁
 - **单命令执行**:`gossh run <host> '<cmd>'` 无浏览器直跑,浏览器内也有入口
 - **单二进制交付**:前端经 `go:embed` 内嵌,跨平台编译无需 Node 运行时

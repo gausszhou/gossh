@@ -8,9 +8,23 @@ import (
 	"net/http"
 
 	"github.com/gausszhou/gossh/internal/session"
+	"github.com/gausszhou/gossh/internal/sshx"
 	"github.com/gausszhou/gossh/internal/terminal"
 	"github.com/gausszhou/gossh/internal/utils"
 )
+
+// forwardProvidedSecrets 把本次会话请求里浏览器输入的密码/口令构造成
+// 转发连接拨号凭据(仅本次有效,不入 keyring;未提供则为空)。
+func forwardProvidedSecrets(req createSessionRequest) *sshx.ProvidedSecrets {
+	prov := &sshx.ProvidedSecrets{}
+	if req.Password != nil && *req.Password != "" {
+		prov.Password = req.Password
+	}
+	if req.Passphrase != nil && *req.Passphrase != "" {
+		prov.Passphrase = req.Passphrase
+	}
+	return prov
+}
 
 // Rest API — session management.
 // 列表由客户端清单(localStorage)驱动;服务端只按 id 提供:
@@ -89,9 +103,11 @@ func (server *Server) handleCreateSession(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// 自动应用主机记录里配置的持久端口转发(配置在主机侧,连上即生效)
-	if created {
-		server.applyHostForwards(sess.ID(), spec.HostID)
+	// 主机级转发常驻在主机专属转发连接上(ADR-0007):每次会话建立都顺带
+	// ensure(幂等)——连接未起则带本次凭据拨号并拉起 host.Forwards;
+	// 浏览器输入的密码/口令顺带成为转发连接的拨号凭据。转发不随会话销毁。
+	if spec.HostID != "" {
+		server.forwardHosts.ensure(spec.HostID, forwardProvidedSecrets(req))
 	}
 
 	// 连接成功后按需把秘密存入 keyring
