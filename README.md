@@ -58,7 +58,9 @@ curl -fsSL https://raw.githubusercontent.com/gausszhou/gossh/main/scripts/instal
 The script runs the same flow on every platform: detect OS/arch → download the
 platform archive (tar.gz) and verify its sha256 → extract the binary to
 `~/.local/bin` → **idempotently** append that dir to `~/.bashrc` (skips when
-the same line already exists, so re-runs are safe) → prompt
+the same line already exists, so re-runs are safe) → if `~/.profile` exists,
+append a `. ~/.bashrc` bridge line idempotently (so login shells like Git Bash
+load `~/.bashrc`; only when it does not reference bashrc yet) → prompt
 `source ~/.bashrc` to take effect.
 
 Native Windows PowerShell installer (same flow; registers PATH in the

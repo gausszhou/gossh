@@ -165,6 +165,22 @@ else
     fi
 fi
 
+# --- 4b. 保证 login shell 也加载 ~/.bashrc(幂等) ------------------------
+# Git Bash 等以 login shell 启动:若用户已有 ~/.profile 而没有
+# ~/.bash_profile,登录时只读 ~/.profile,~/.bashrc 里的 PATH 不会生效
+# (Git Bash 默认只在「仅有 ~/.bashrc」时自动生成桥接 ~/.bash_profile)。
+# 这里若 ~/.profile 存在,则幂等补一行 . ~/.bashrc(仅当其未引用 bashrc 时)。
+PROFILE="${HOME}/.profile"
+if [ -f "$PROFILE" ]; then
+    if grep -qs 'bashrc' "$PROFILE"; then
+        echo "~/.profile 已引用 .bashrc,跳过"
+    elif printf '\n# gossh: login shell 加载 ~/.bashrc\n. "$HOME/.bashrc"\n' >> "$PROFILE" 2>/dev/null; then
+        echo "已在 $PROFILE 补一行 . ~/.bashrc"
+    else
+        echo "warning: 无法写入 $PROFILE,请手动添加:. \"\$HOME/.bashrc\"" >&2
+    fi
+fi
+
 # --- 5. 提示生效 ----------------------------------------------------------
 "$BINDIR/$BIN" version
 
