@@ -11,7 +11,7 @@
 - **单实例**:`flock ~/.gossh/app.lock`;第二实例只「打开已有实例的界面」并退出。
 - **安全**:令牌门禁一字不改,自动开浏览器时注入 `?token=`;不引入任何旁路。
 - **开机自启**:状态 = `~/.config/autostart/gossh.desktop` 文件存在性;Exec 优先 `$APPIMAGE`(AppImage 运行时指向真实文件)回退 `os.Executable()`;自启用 `--no-browser` 静默进托盘。
-- **分发**:release CI 对 Linux amd64/arm64 各产一个 AppImage(`packaging/linux/` 骨架 + `assets/icon.png`);install.sh 不动。
+- **分发**:release CI 对 Linux 产 AppImage(`packaging/linux/` 骨架 + `assets/icon.png`);install.sh 不动。v0.1.0 起仅发布 amd64:arm64 交叉工具链(runner 默认源不提供 arm64 索引,注册 arm64 架构后 `apt-get update` 404 退出 100)连续两轮 CI 失败后暂缓,详见 release.yml 注释与 ADR 代价一节。
 
 ## 理由
 
@@ -27,7 +27,7 @@
 
 - Linux 的 `gossh app` 需要 cgo 构建(`CGO_ENABLED=1` + GTK/AppIndicator 头);默认 `make build/release`(`CGO_ENABLED=0`)产出的二进制 `gossh app` 会报"需要 cgo"——桌面形态只在 AppImage(CI cgo 构建)与本机 cgo 构建中可用。
 - 托盘依赖桌面环境的 AppIndicator/SNI 支持(GNOME 需装扩展,Ubuntu 预装);纯 headless 环境无托盘,`gossh app` 明确报错,用 `gossh serve`。
-- arm64 AppImage 需要 CI 交叉工具链(GTKK arm64 头 + 交叉 gcc),是发布流水线上最易碎的一环。
+- arm64 AppImage 需要 CI 交叉工具链(目标架构 GTK 头 + 交叉 gcc + 交叉 pkg-config),是发布流水线上最易碎的一环:v0.1.0 尝试两轮失败(runner 默认源不提供 arm64 索引),已暂缓为仅发布 amd64 AppImage;恢复时需为 arm64 另配 ports.ubuntu.com 源段并解决 `security.ubuntu.com` 索引缺失。
 
 ## 备选
 

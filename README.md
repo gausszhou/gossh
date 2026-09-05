@@ -19,8 +19,6 @@ Open the printed URL and you are in. The server only listens on
 `127.0.0.1` and is guarded by an access token — private keys never leave
 the process.
 
-> 简体中文版说明见 [README.zh.md](README.zh.md).
-
 ## Features
 
 - **Host inventory**: create/update/delete, groups, search, and `via`
