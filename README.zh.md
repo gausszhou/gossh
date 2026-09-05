@@ -3,7 +3,7 @@
 [English](README.md) | **简体中文**
 
 一个基于 Go 技术栈的 SSH 客户端:本地运行一个服务端,浏览器就是你的终端 UI。
-管理主机清单、多会话页签、SFTP 文件传输、端口转发、跳板链、凭据入库(keyring)。
+管理主机清单、多会话页签、SFTP 文件传输、端口转发、凭据入库(keyring)。
 
 ```
 gossh serve
@@ -16,7 +16,7 @@ gossh serve
 
 ## 特性
 
-- **主机清单**:CRUD、分组、搜索、`via` 跳板链(任意深度,ProxyJump 语义)
+- **主机清单**:CRUD、分组、搜索
 - **多会话页签**:SSH 会话页签可左右拖拽排序,顺序按设备持久化
   (localStorage `gossh.tabOrder`)
 - **SFTP**(编译期可选):在会话连接上浏览/传输文件。**默认构建不编译**
@@ -109,7 +109,7 @@ gossh version
 - 仅监听 `127.0.0.1`,随机访问令牌(`Authorization: Bearer` / `X-Gossh-Token` /
   `?token=`),常量时间比较;见 [ADR 0005](docs/adr/0005-access-token-posture.md)
 - 密码/口令只进系统 keyring,永不落盘明文;keyring 不可用时不持久化
-- 主机密钥 TOFU 校验每一跳(含跳板机);指纹不匹配拒绝连接
+- 主机密钥 TOFU 校验;指纹不匹配拒绝连接
 - 数据不离开本机进程;暴露到网络请自行加 TLS 反代并配合 `--ws-origin`
 
 ## 架构
@@ -119,8 +119,8 @@ internal/api        HTTP/WS 路由、令牌、主机/SFTP/转发处理器
 internal/session    会话注册表与生命周期(幂等创建、抢占、空闲淘汰,搬迁自 gotty)
 internal/terminal   浏览器二进制帧协议(webtty,搬迁自 gotty)
 internal/sshtty     session.Terminal 的 SSH 实现(远端 PTY shell)
-internal/sshx       连接链拨号(任意深度跳板)、凭据解析、TOFU 信任库、keyring
-internal/host       主机清单(hosts.json)与连接链解析
+internal/sshx       直连拨号、凭据解析、TOFU 信任库、keyring
+internal/host       主机清单(hosts.json)
 apps/web            Vue3 + Vite + xterm.js(页签/列表/SFTP)
 ```
 

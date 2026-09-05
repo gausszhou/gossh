@@ -8,7 +8,7 @@
 
 ## 决策
 
-- **per-host 转发连接**(Step A):每台主机至多一条「转发连接」,由 `ForwardHostManager`(key=hostID)持有,复用与 session 拨号完全相同的链路(`sshx.BuildHops` 连接链 + TOFU + `sshx.DialChain` + keyring 凭据解析),但不开 PTY——连接只承载转发。
+- **per-host 转发连接**(Step A):每台主机至多一条「转发连接」,由 `ForwardHostManager`(key=hostID)持有,复用与 session 拨号完全相同的链路(`sshx.BuildHop` + TOFU + `sshx.Dial` + keyring 凭据解析),但不开 PTY——连接只承载转发。
 - **触发**:会话建立时 `ensure(hostID, prov)`(幂等):连接未起则拨号并拉起 `host.Forwards`;已起则补 reconcile。主机记录变更(`PUT /api/hosts`)→ `reconcile` diff 启动/撤销;主机删除 → `release`;服务退出 → `closeAll`。
 - **凭据策略(A-1「借凭据再拨一条」)**:key/钥匙串凭据可无头拨号;仅存在于浏览器的密码,由该主机任一会话建立时的请求顺带作为转发连接的拨号凭据——服务端以相同凭据另拨一条转发连接,**不移交会话连接**。浏览器密码用户因此也能常驻,零额外输入。
 - **运行时视图**:`GET /api/hosts/{id}/forwards` 返回每条转发的状态(running/pending/failed + 错误信息);会话级转发端点(`/api/sessions/{id}/forwards`)不动。

@@ -104,20 +104,20 @@ func New(manager *session.Manager, options *Options, inventory *host.Inventory, 
 	return server, nil
 }
 
-// dialHostForward 建立主机级转发连接:与 session 拨号同一条链路
-// (连接链 + TOFU + 凭据解析),但不开 PTY——连接只承载端口转发。
+// dialHostForward 建立主机级转发连接:与 session 拨号同一链路
+// (TOFU + 凭据解析),但不开 PTY——连接只承载端口转发。
 func (server *Server) dialHostForward(hostID string, prov *sshx.ProvidedSecrets) (*sshx.DialResult, error) {
-	chain, err := server.inventory.Chain(hostID)
+	h, err := server.inventory.Get(hostID)
 	if err != nil {
 		return nil, err
 	}
-	hops, err := sshx.BuildHops(chain, server.secrets, prov, server.knownHosts, server.connectTimeout())
+	hop, err := sshx.BuildHop(h, server.secrets, prov, server.knownHosts, server.connectTimeout())
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), server.chainTimeout(len(hops)))
+	ctx, cancel := context.WithTimeout(context.Background(), server.connectTimeout())
 	defer cancel()
-	return sshx.DialChain(ctx, hops)
+	return sshx.Dial(ctx, hop)
 }
 
 // Token returns the effective access token (used by the CLI to print
@@ -125,16 +125,12 @@ func (server *Server) dialHostForward(hostID string, prov *sshx.ProvidedSecrets)
 func (server *Server) Token() string { return server.token }
 
 // dialFactory is the session manager's TerminalFactory: resolve the host
-// chain, dial it hop by hop with TOFU host-key checks, and wrap the
-// connection in an ssh tty.
+// record, dial it with TOFU host-key checks, and wrap the connection in
+// an ssh tty.
 func (server *Server) dialFactory(spec session.ConnectSpec, opts ...terminal.Option) (session.Terminal, error) {
 	h, err := server.inventory.Get(spec.HostID)
 	if err != nil {
 		return nil, fmt.Errorf("host not found: %w", err)
-	}
-	chain, err := server.inventory.Chain(spec.HostID)
-	if err != nil {
-		return nil, err
 	}
 
 	prov := &sshx.ProvidedSecrets{}
@@ -148,13 +144,13 @@ func (server *Server) dialFactory(spec session.ConnectSpec, opts ...terminal.Opt
 		}
 	}
 
-	hops, err := sshx.BuildHops(chain, server.secrets, prov, server.knownHosts, server.connectTimeout())
+	hop, err := sshx.BuildHop(h, server.secrets, prov, server.knownHosts, server.connectTimeout())
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), server.chainTimeout(len(hops)))
+	ctx, cancel := context.WithTimeout(context.Background(), server.connectTimeout())
 	defer cancel()
-	dial, err := sshx.DialChain(ctx, hops)
+	dial, err := sshx.Dial(ctx, hop)
 	if err != nil {
 		return nil, err
 	}
@@ -173,10 +169,6 @@ func (server *Server) connectTimeout() time.Duration {
 		d = 10 * time.Second
 	}
 	return d
-}
-
-func (server *Server) chainTimeout(hops int) time.Duration {
-	return server.connectTimeout()*time.Duration(hops) + 5*time.Second
 }
 
 // Run starts the HTTP server. It blocks until ctx is canceled.
@@ -311,7 +303,6 @@ func (server *Server) setupHandlers() http.Handler {
 	apiMux.HandleFunc("GET /api/hosts/{id}", server.handleGetHost)
 	apiMux.HandleFunc("PUT /api/hosts/{id}", server.handleUpdateHost)
 	apiMux.HandleFunc("DELETE /api/hosts/{id}", server.handleDeleteHost)
-	apiMux.HandleFunc("GET /api/hosts/{id}/parents", server.handleHostParents)
 	apiMux.HandleFunc("GET /api/hosts/{id}/forwards", server.handleListHostForwards)
 
 	// REST API — TOFU trust store management

@@ -20,23 +20,9 @@ type ProvidedSecrets struct {
 	Passphrase *string
 }
 
-// BuildHops resolves a connection chain (host records, outermost jump
-// first) into dial hops. Every hop gets its own authentication methods
-// and its own TOFU host-key callback — a changed key on a jump host is
-// just as suspicious as one on the target.
-func BuildHops(chain []*host.Host, secrets *Secrets, prov *ProvidedSecrets, kh *KnownHosts, timeout time.Duration) ([]*DialHop, error) {
-	hops := make([]*DialHop, 0, len(chain))
-	for _, h := range chain {
-		hop, err := BuildHop(h, secrets, prov, kh, timeout)
-		if err != nil {
-			return nil, err
-		}
-		hops = append(hops, hop)
-	}
-	return hops, nil
-}
-
-// BuildHop resolves one host record into a DialHop.
+// BuildHop resolves one host record into a DialHop: its own
+// authentication methods (agent / key / keyring password / provided
+// per-connect secrets) and its own TOFU host-key callback.
 func BuildHop(h *host.Host, secrets *Secrets, prov *ProvidedSecrets, kh *KnownHosts, timeout time.Duration) (*DialHop, error) {
 	auths, err := buildAuthMethods(h, secrets, prov)
 	if err != nil {

@@ -1,4 +1,4 @@
-// Package sshtty adapts an SSH connection (with its jump chain) to the
+// Package sshtty adapts an SSH connection to the
 // session.Terminal interface: a remote PTY shell behaves like the local
 // process gotty used to spawn. All bytes flow through the same wire
 // protocol, so the rest of the stack (session manager, WS attach, mirror)
@@ -128,7 +128,7 @@ func (t *Tty) waitLoop() {
 	close(t.exited)
 }
 
-// keepalive keeps otherwise-idle connections (and the jump chain) from
+// keepalive keeps otherwise-idle connections from
 // being dropped by NATs and servers. Best-effort: failures surface on
 // the session channel itself, where the output pump reports them.
 func (t *Tty) keepalive() {

@@ -24,8 +24,6 @@ var (
 	ErrNotFound = errors.New("host not found")
 	ErrIDExists = errors.New("host id already exists")
 	ErrNameDup  = errors.New("host name already in use")
-	ErrBadVia   = errors.New("via references a missing or invalid host")
-	ErrCycle    = errors.New("via chain contains a cycle")
 	ErrArgument = errors.New("invalid host argument")
 )
 
@@ -69,7 +67,6 @@ type Host struct {
 	User       string     `json:"user"`
 	Group      string     `json:"group,omitempty"`
 	Credential Credential `json:"credential"`
-	Via        string     `json:"via,omitempty"` // host id of the jump host
 	Forwards   []Forward  `json:"forwards,omitempty"`
 	CreatedAt  int64      `json:"created_at"`
 	UpdatedAt  int64      `json:"updated_at"`
@@ -183,9 +180,6 @@ func (inv *Inventory) addLocked(h *Host) error {
 	if _, dup := inv.byName[h.Name]; dup {
 		return fmt.Errorf("%w: %s", ErrNameDup, h.Name)
 	}
-	if err := validateViaLocked(inv, h); err != nil {
-		return err
-	}
 	now := time.Now().Unix()
 	h.CreatedAt = now
 	h.UpdatedAt = now
@@ -207,9 +201,6 @@ func (inv *Inventory) Update(h *Host) error {
 			return fmt.Errorf("%w: %s", ErrNameDup, h.Name)
 		}
 	}
-	if err := validateViaLocked(inv, h); err != nil {
-		return err
-	}
 	h.CreatedAt = old.CreatedAt
 	h.UpdatedAt = time.Now().Unix()
 	inv.hosts[h.ID] = cloneHost(h)
@@ -220,8 +211,7 @@ func (inv *Inventory) Update(h *Host) error {
 	return inv.saveLocked()
 }
 
-// Remove deletes a host. Hosts that other records point to via `via`
-// cannot be removed while referenced.
+// Remove deletes a host.
 func (inv *Inventory) Remove(id string) error {
 	inv.mu.Lock()
 	defer inv.mu.Unlock()
@@ -229,102 +219,9 @@ func (inv *Inventory) Remove(id string) error {
 	if !ok {
 		return fmt.Errorf("%w: %s", ErrNotFound, id)
 	}
-	for _, other := range inv.hosts {
-		if other.Via == id {
-			return fmt.Errorf("%w: host `%s` is referenced as a jump host by `%s`", ErrBadVia, id, other.ID)
-		}
-	}
 	delete(inv.hosts, id)
 	delete(inv.byName, h.Name)
 	return inv.saveLocked()
-}
-
-// validateViaLocked checks that the candidate's via chain (merged with
-// the current store) exists and does not form a cycle. The candidate's
-// own edge is included so an update that closes a loop (a→b plus b→a)
-// is caught. Caller must hold inv.mu.
-func validateViaLocked(inv *Inventory, h *Host) error {
-	if h.Via == "" {
-		return nil
-	}
-	merged := make(map[string]*Host, len(inv.hosts)+1)
-	for id, hh := range inv.hosts {
-		merged[id] = hh
-	}
-	merged[h.ID] = h
-
-	seen := map[string]bool{}
-	cur := h.Via
-	for cur != "" {
-		if seen[cur] {
-			return fmt.Errorf("%w: %s", ErrCycle, h.Via)
-		}
-		seen[cur] = true
-		next, ok := merged[cur]
-		if !ok {
-			return fmt.Errorf("%w: %s", ErrBadVia, cur)
-		}
-		cur = next.Via
-	}
-	return nil
-}
-
-// Chain resolves the connection chain (CONTEXT.md → 连接链) for a host:
-// the ordered list starting at the outermost jump and ending with the
-// target itself. Chain[0] is dialed directly from the local machine.
-func (inv *Inventory) Chain(id string) ([]*Host, error) {
-	inv.mu.Lock()
-	defer inv.mu.Unlock()
-	target, ok := inv.hosts[id]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrNotFound, id)
-	}
-	chain := []*Host{}
-	seen := map[string]bool{}
-	cur := target
-	for {
-		if seen[cur.ID] {
-			return nil, fmt.Errorf("%w: %s", ErrCycle, target.ID)
-		}
-		seen[cur.ID] = true
-		chain = append([]*Host{cloneHost(cur)}, chain...) // prepend
-		if cur.Via == "" {
-			break
-		}
-		next, ok := inv.hosts[cur.Via]
-		if !ok {
-			return nil, fmt.Errorf("%w: %s", ErrBadVia, cur.Via)
-		}
-		cur = next
-	}
-	return chain, nil
-}
-
-// Parents returns the via chain of ancestor ids (target excluded),
-// nearest first — for the UI to render the jump path.
-func (inv *Inventory) Parents(id string) ([]string, error) {
-	inv.mu.Lock()
-	defer inv.mu.Unlock()
-	target, ok := inv.hosts[id]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrNotFound, id)
-	}
-	out := []string{}
-	seen := map[string]bool{}
-	cur := target.Via
-	for cur != "" {
-		if seen[cur] {
-			return nil, fmt.Errorf("%w: %s", ErrCycle, target.ID)
-		}
-		seen[cur] = true
-		out = append([]string{cur}, out...)
-		next, ok := inv.hosts[cur]
-		if !ok {
-			return nil, fmt.Errorf("%w: %s", ErrBadVia, cur)
-		}
-		cur = next.Via
-	}
-	return out, nil
 }
 
 // saveLocked persists the inventory atomically. Caller must hold inv.mu.

@@ -65,17 +65,6 @@
             </label>
           </div>
 
-          <!-- 跳板机 -->
-          <div class="form-section">
-            <label class="form-field">
-              <span class="form-label">{{ t('hostForm.via') }}</span>
-              <select v-model="draft.via" class="form-input">
-                <option value="">{{ t('hostForm.viaNone') }}</option>
-                <option v-for="h in viaCandidates" :key="h.id" :value="h.id">{{ h.name }}</option>
-              </select>
-            </label>
-          </div>
-
           <div v-if="formError" class="form-error">{{ formError }}</div>
         </div>
 
@@ -101,7 +90,6 @@ const props = defineProps<{
     open: boolean
     // null = 新建;非空 = 编辑
     host: Host | null
-    // 全部主机(跳板机下拉候选;编辑时排除自身)
     hosts: Host[]
 }>()
 
@@ -118,11 +106,6 @@ function kindLabel(k: CredentialKind): string {
 
 const isEdit = computed(() => !!props.host)
 
-// 跳板候选:排除自身(避免 via 自引用)
-const viaCandidates = computed(() =>
-    props.hosts.filter((h) => !props.host || h.id !== props.host.id),
-)
-
 interface Draft {
     name: string
     address: string
@@ -130,7 +113,6 @@ interface Draft {
     user: string
     group: string
     credential: { kind: CredentialKind; key_path: string }
-    via: string
     password: string
     savePassword: boolean
 }
@@ -143,7 +125,6 @@ function emptyDraft(): Draft {
         user: '',
         group: '',
         credential: { kind: 'default', key_path: '' },
-        via: '',
         password: '',
         savePassword: false,
     }
@@ -171,7 +152,6 @@ watch(
                     kind: h.credential?.kind || 'default',
                     key_path: h.credential?.key_path || '',
                 },
-                via: h.via || '',
                 password: '',
                 savePassword: false,
             }
@@ -222,7 +202,6 @@ async function save() {
                 ? { key_path: d.credential.key_path.trim() }
                 : {}),
         },
-        via: d.via || undefined,
         forwards: props.host?.forwards || [],
     }
     // 服务端不会把密码写入 hosts.json;save_password=true 时存入系统 keyring

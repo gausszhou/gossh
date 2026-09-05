@@ -32,9 +32,6 @@
             </div>
             <div class="host-sub">
               <span class="host-addr" :title="h.user + '@' + h.address">{{ h.user }}@{{ h.address }}</span>
-              <span v-if="viaChain(h).length" class="host-via" :title="viaChain(h).join(' → ')">
-                {{ t('host.via') }} {{ viaChain(h).join(' → ') }}
-              </span>
             </div>
             <div class="host-actions">
               <button class="act-btn act-primary" :title="t('host.act.connect')" @click="emit('connect', h)">
@@ -139,11 +136,6 @@ function toggleGroup(name: string) {
     if (next.has(name)) next.delete(name)
     else next.add(name)
     collapsedGroups.value = next
-}
-
-// via 链:服务端已附 via_names(最外层在前)
-function viaChain(h: Host): string[] {
-    return h.via_names || []
 }
 
 // 凭据徽标文案:key 显示 key_path 后缀
@@ -350,15 +342,6 @@ function showDeleteError() {
 .host-addr {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: 11px;
-}
-
-.host-via {
-    color: var(--fg-hint);
-    font-size: 11px;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .host-actions {

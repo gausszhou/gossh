@@ -51,7 +51,6 @@ func buildHostsAddCmd() *cobra.Command {
 			user, _ := cmd.Flags().GetString("user")
 			port, _ := cmd.Flags().GetInt("port")
 			group, _ := cmd.Flags().GetString("group")
-			via, _ := cmd.Flags().GetString("via")
 
 			credKind := host.CredDefault
 			keyPath, _ := cmd.Flags().GetString("key")
@@ -77,7 +76,6 @@ func buildHostsAddCmd() *cobra.Command {
 				Port:    port,
 				User:    user,
 				Group:   group,
-				Via:     via,
 				Credential: host.Credential{
 					Kind:    credKind,
 					KeyPath: keyPath,
@@ -95,7 +93,6 @@ func buildHostsAddCmd() *cobra.Command {
 	cmd.Flags().String("user", "", "Remote user")
 	cmd.Flags().Int("port", 0, "SSH port (default 22)")
 	cmd.Flags().String("group", "", "Inventory group")
-	cmd.Flags().String("via", "", "Jump host id (ProxyJump chain)")
 	cmd.Flags().String("key", "", "Private key file path (credential kind = key)")
 	cmd.Flags().Bool("agent", false, "Authenticate via ssh-agent only")
 	cmd.Flags().Bool("password", false, "Authenticate with password (keyring)")
@@ -119,11 +116,7 @@ func buildHostsListCmd() *cobra.Command {
 				return nil
 			}
 			for _, h := range hosts {
-				via := ""
-				if h.Via != "" {
-					via = " via " + h.Via
-				}
-				fmt.Printf("%-24s %-10s %s@%s%s\n", h.ID, "["+h.Group+"]", h.User, h.Addr(), via)
+				fmt.Printf("%-24s %-10s %s@%s\n", h.ID, "["+h.Group+"]", h.User, h.Addr())
 			}
 			return nil
 		},

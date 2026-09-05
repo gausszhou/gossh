@@ -10,26 +10,7 @@ import (
 
 // handleListHosts implements GET /api/hosts.
 func (server *Server) handleListHosts(w http.ResponseWriter, r *http.Request) {
-	hosts := server.inventory.List()
-
-	// 附上每个主机的跳板路径,前端可直接渲染连接链
-	type hostView struct {
-		*host.Host
-		ViaNames []string `json:"via_names"`
-	}
-	views := make([]hostView, 0, len(hosts))
-	for _, h := range hosts {
-		v := hostView{Host: h}
-		if parents, err := server.inventory.Parents(h.ID); err == nil {
-			for _, pid := range parents {
-				if p, err := server.inventory.Get(pid); err == nil {
-					v.ViaNames = append(v.ViaNames, p.Name)
-				}
-			}
-		}
-		views = append(views, v)
-	}
-	writeJSON(w, http.StatusOK, views)
+	writeJSON(w, http.StatusOK, server.inventory.List())
 }
 
 // hostRequest 是 POST/PUT /api/hosts 的请求体:主机字段平铺,
@@ -115,15 +96,4 @@ func (server *Server) handleDeleteHost(w http.ResponseWriter, r *http.Request) {
 	server.forwardHosts.release(id)
 	log.Printf("Host removed: %s", id)
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// handleHostParents implements GET /api/hosts/{id}/parents — the jump
-// path (nearest first) for the UI.
-func (server *Server) handleHostParents(w http.ResponseWriter, r *http.Request) {
-	parents, err := server.inventory.Parents(r.PathValue("id"))
-	if err != nil {
-		writeError(w, http.StatusNotFound, "host not found")
-		return
-	}
-	writeJSON(w, http.StatusOK, parents)
 }

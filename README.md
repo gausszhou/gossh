@@ -21,8 +21,7 @@ the process.
 
 ## Features
 
-- **Host inventory**: create/update/delete, groups, search, and `via`
-  jump chains of arbitrary depth (ProxyJump semantics)
+- **Host inventory**: create/update/delete, groups, search
 - **Multi-session tabs**: SSH sessions side by side; drag tabs to
   reorder, order persisted per device in localStorage (`gossh.tabOrder`)
   '<command>'` (exit codes pass through) and browser run-result tabs.
@@ -148,9 +147,9 @@ internal/session    session registry and lifecycle (idempotent create,
                     preemption, idle expiry — ported from gotty)
 internal/terminal   browser binary frame protocol ("webtty", ported from gotty)
 internal/sshtty     the session.Terminal implementation over SSH (remote PTY shell)
-internal/sshx       chain dialing (arbitrary-depth jump), credential
-                    resolution, TOFU trust store, keyring
-internal/host       host inventory (hosts.json) and connection-chain resolution
+internal/sshx       direct dialing, credential resolution, TOFU trust store,
+                    keyring
+internal/host       host inventory (hosts.json)
 apps/web            Vue3 + Vite + xterm.js (tabs / inventory / SFTP)
 ```
 

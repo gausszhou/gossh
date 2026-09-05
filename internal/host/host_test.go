@@ -56,49 +56,8 @@ func TestInventoryCRUD(t *testing.T) {
 	}
 }
 
-func TestInventoryChainAndCycle(t *testing.T) {
-	inv, err := LoadInventory(t.TempDir() + "/hosts.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	jump1 := testHost("j1", "jump1")
-	jump2 := testHost("j2", "jump2")
-	target := testHost("t1", "target")
-	target.Via = "j2"
-	jump2.Via = "j1"
-	for _, h := range []*Host{jump1, jump2, target} {
-		if err := inv.Add(h); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	chain, err := inv.Chain("t1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(chain) != 3 {
-		t.Fatalf("expected 3 hops, got %d", len(chain))
-	}
-	// 最外层跳板在前,目标最后
-	if chain[0].ID != "j1" || chain[1].ID != "j2" || chain[2].ID != "t1" {
-		t.Fatalf("chain order wrong: %s %s %s", chain[0].ID, chain[1].ID, chain[2].ID)
-	}
-
-	parents, err := inv.Parents("t1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(parents) != 2 || parents[0] != "j1" || parents[1] != "j2" {
-		t.Fatalf("parents wrong: %v", parents)
-	}
-
-	// 删除被引用的跳板机应被拒绝
-	if err := inv.Remove("j1"); err == nil {
-		t.Fatal("removing a referenced jump host must be rejected")
-	}
-}
-
-func TestInventoryCycleDetected(t *testing.T) {
+// 删除被引用为跳板机的主机:跳板机功能 v0.1.2 移除,此处仅验证删除任意主机。
+func TestInventoryRemoveAnyHost(t *testing.T) {
 	inv, err := LoadInventory(t.TempDir() + "/hosts.json")
 	if err != nil {
 		t.Fatal(err)
@@ -111,15 +70,11 @@ func TestInventoryCycleDetected(t *testing.T) {
 	if err := inv.Add(b); err != nil {
 		t.Fatal(err)
 	}
-	// a → b 合法
-	a.Via = "b"
-	if err := inv.Update(a); err != nil {
-		t.Fatalf("a->b must be accepted: %s", err)
+	if err := inv.Remove(a.ID); err != nil {
+		t.Fatalf("removing a host must succeed: %s", err)
 	}
-	// b → a 成环,必须拒绝
-	b.Via = "a"
-	if err := inv.Update(b); err == nil {
-		t.Fatal("via cycle must be rejected")
+	if _, err := inv.Get(a.ID); err == nil {
+		t.Fatal("host must be gone after remove")
 	}
 }
 

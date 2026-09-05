@@ -36,7 +36,7 @@ export interface HostForward {
     target?: string
 }
 
-// GET /api/hosts 的单条记录(附 via_names 连接链展示)。
+// GET /api/hosts 的单条记录。
 export interface Host {
     id: string
     name: string
@@ -45,15 +45,12 @@ export interface Host {
     user: string
     group?: string
     credential: Credential
-    via?: string // 跳板机 host id
     forwards?: HostForward[]
     created_at?: number
     updated_at?: number
-    via_names?: string[] // 服务端附加:跳板链名称(目标除外)
 }
 
-// GET /api/hosts/{id}/parents 返回:跳板 id 数组(最近者优先)。
-export type HostParents = string[]
+
 
 // GET /api/known-hosts 的单条记录。
 export interface KnownHost {

@@ -47,7 +47,6 @@ const messages: Record<Lang, Record<string, string>> = {
         'host.credKey': 'key',
         'host.credAgent': 'agent',
         'host.credPassword': 'password',
-        'host.via': 'via',
         // ── 主机表单 ──
         'hostForm.create': '新建主机',
         'hostForm.edit': '编辑主机',
@@ -61,8 +60,6 @@ const messages: Record<Lang, Record<string, string>> = {
         'hostForm.password': '密码',
         'hostForm.passwordPlaceholder': '连接用密码(不写入主机清单)',
         'hostForm.savePassword': '保存到系统钥匙串',
-        'hostForm.via': '跳板机',
-        'hostForm.viaNone': '无(直连)',
         'hostForm.required': '名称、地址与用户名必填',
         'hostForm.portInvalid': '端口需为 1–65535 的整数',
         'hostForm.saveFailed': '保存失败',
@@ -194,7 +191,6 @@ const messages: Record<Lang, Record<string, string>> = {
         'host.credKey': 'key',
         'host.credAgent': 'agent',
         'host.credPassword': 'password',
-        'host.via': 'via',
         // ── Host form ──
         'hostForm.create': 'New host',
         'hostForm.edit': 'Edit host',
@@ -208,8 +204,6 @@ const messages: Record<Lang, Record<string, string>> = {
         'hostForm.password': 'Password',
         'hostForm.passwordPlaceholder': 'Password for connecting (not stored in the inventory)',
         'hostForm.savePassword': 'Save to system keyring',
-        'hostForm.via': 'Jump host',
-        'hostForm.viaNone': 'None (direct)',
         'hostForm.required': 'Name, address and user are required',
         'hostForm.portInvalid': 'Port must be an integer 1–65535',
         'hostForm.saveFailed': 'Failed to save',

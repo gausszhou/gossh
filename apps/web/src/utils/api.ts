@@ -6,7 +6,7 @@
 // 服务端只按 id 提供:创建(幂等/复活)、详情、状态批量查询、销毁。
 import { logger } from './logger'
 import type {
-    Host, HostParents, KnownHost, SftpEntry, StateDescription, ForwardEntry,
+    Host, KnownHost, SftpEntry, StateDescription, ForwardEntry,
 } from './types'
 
 const TOKEN_KEY = 'gossh.token'
@@ -203,11 +203,6 @@ export async function updateHost(host: Host): Promise<Host> {
 
 export async function deleteHost(id: string): Promise<void> {
     await fetchRaw(`/api/hosts/${encodeURIComponent(id)}`, { method: 'DELETE' })
-}
-
-// hostParents 取得跳板 id 链(最近者优先)。
-export async function hostParents(id: string): Promise<HostParents> {
-    return fetchJSON<HostParents>(`/api/hosts/${encodeURIComponent(id)}/parents`)
 }
 
 // ── 已知主机密钥(TOFU trust store) ──
