@@ -1,6 +1,6 @@
-//go:build !linux
+//go:build !linux && !windows
 
 package desktop
 
-// RunTray 非 linux 平台暂不支持(Windows/macOS 为 P2)。
+// RunTray 未支持平台暂不可用(macOS 等为 P2)。
 func RunTray(o TrayOptions) error { return errUnsupported }

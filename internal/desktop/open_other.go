@@ -1,6 +1,6 @@
-//go:build !linux
+//go:build !linux && !windows
 
 package desktop
 
-// OpenBrowser 非 linux 平台暂不支持。
+// OpenBrowser 未支持平台暂不可用。
 func OpenBrowser(url string) error { return errUnsupported }

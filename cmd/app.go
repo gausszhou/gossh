@@ -26,13 +26,14 @@ var appMappings map[string]string
 func buildAppCmd() *cobra.Command {
 	appCmd := &cobra.Command{
 		Use:   "app [flags]",
-		Short: "Run GoSSH as a desktop app on Linux (tray + browser UI)",
-		Long: "Run GoSSH as a desktop app on Linux (tray + browser UI).\n\n" +
+		Short: "Run GoSSH as a desktop app (tray + browser UI)",
+		Long: "Run GoSSH as a desktop app (tray + browser UI).\n\n" +
 			"The server runs in the same process and stays resident in the\n" +
 			"system tray: closing the browser does not stop sessions; only\n" +
 			"the tray \"quit\" item stops the server. The browser opens\n" +
 			"automatically with the access token injected. A second\n" +
-			"invocation just opens the UI of the running instance.",
+			"invocation just opens the UI of the running instance.\n\n" +
+			"Platforms: Linux (cgo build) and Windows (native binary).",
 		Args: cobra.NoArgs,
 		RunE: runApp,
 	}

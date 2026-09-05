@@ -2,6 +2,7 @@ gossh
 bindata
 build/
 internal/api/static
+.pnpm-store/
 
 # pnpm workspace
 node_modules

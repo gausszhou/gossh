@@ -2,10 +2,11 @@
 // 单实例锁、打开浏览器、系统托盘、开机自启。
 //
 // 平台分层:
-//   - 纯 Go 逻辑(锁/自启/开浏览器):linux 实现 + 非 linux 报错 stub
-//   - 托盘:仅 `linux && cgo` 启用(getlantern/systray 走 GTK/AppIndicator);
+//   - 纯 Go 逻辑(锁/自启/开浏览器):linux + windows 实现,其余平台报错 stub
+//   - 托盘:linux 需 cgo(getlantern/systray 走 GTK/AppIndicator);
+//     windows 纯 Go(win32 消息循环,无需 cgo);
 //     linux 但非 cgo 构建时给出明确报错(保持 make build/release 的
-//     CGO_ENABLED=0 五平台矩阵不受影响);非 linux 为 P2 占位报错。
+//     CGO_ENABLED=0 五平台矩阵不受影响);其余平台(macOS 等)为 P2 占位报错。
 package desktop
 
 // TrayOptions 配置托盘常驻。

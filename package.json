@@ -12,5 +12,13 @@
         "build": "pnpm --filter gotty-frontend build",
         "build:web": "pnpm --filter gotty-frontend build",
         "preview:web": "pnpm --filter gotty-frontend preview"
+    },
+    "devDependencies": {
+        "agent-browser": "^0.36.0"
+    },
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "agent-browser"
+        ]
     }
 }

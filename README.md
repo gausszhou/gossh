@@ -43,9 +43,10 @@ the process.
   not kill the SSH session; it idles out (default 900s) before teardown
 - **One binary**: the frontend is embedded via `go:embed`; cross-compiles
   with no Node runtime required
-- **Desktop mode (Linux)**: `gossh app` stays resident in the system tray
-  with autostart, single-instance locking, auto-opens the browser with the
-  token injected; releases ship a portable AppImage
+- **Desktop mode (Linux + Windows)**: `gossh app` stays resident in the
+  system tray with autostart, single-instance locking, auto-opens the
+  browser with the token injected; Linux releases ship a portable
+  AppImage, the Windows binary needs nothing extra
 
 ## Installation
 
@@ -96,7 +97,7 @@ First-run flow:
 3. Work in the session tab; SFTP and port forwards live in the tab
    toolbar.
 
-### Desktop mode (Linux)
+### Desktop mode
 
 ```sh
 gossh app              # tray-resident server + auto-opens the browser (token injected)
@@ -106,12 +107,18 @@ gossh app --no-browser # enter the tray without opening the browser (used by aut
 - The server and the tray live in the same process: closing the browser
   does not stop sessions; only the tray "quit" item tears the server down
 - Re-running `gossh app` just opens the UI of the running instance
-  (single-instance lock at `~/.gossh/app.lock`)
-- Tray menu: **open UI / autostart (toggle) / quit**; autostart state is
-  the existence of `~/.config/autostart/gossh.desktop`
+  (single instance: `flock ~/.gossh/app.lock` on Linux, a named mutex
+  `Local\gossh-app-<user>` on Windows)
+- Tray menu: **open UI / autostart (toggle) / quit**
+  - Linux: autostart state is the existence of
+    `~/.config/autostart/gossh.desktop`
+  - Windows: autostart is the `GoSSH` value under HKCU
+    `...\CurrentVersion\Run`; `gossh app` works on the stock
+    `make build` Windows binary (pure-Go Win32 tray, no cgo, no
+    extra runtime)
 - On Linux desktops, grab the **AppImage** from a release: double-click
   to run, no installation
-- The tray needs GTK/AppIndicator (cgo): a `CGO_ENABLED=0` build (the
+- Linux tray needs GTK/AppIndicator (cgo): a `CGO_ENABLED=0` build (the
   default `make build`) tells you to use `gossh serve` instead; AppImage
   and CI builds carry cgo
 - See [ADR 0006](docs/adr/0006-desktop-app.md)

@@ -54,3 +54,9 @@ jobs:
         # SFTP 默认关闭(-tags sftp 才启用);这里保证启用变体始终可编译,
         # 避免 sftp_handler.go 在默认构建下长期不被编译而腐化
         run: CGO_ENABLED=0 go build -trimpath -tags sftp -o /dev/null .
+
+      - name: Verify Windows build compiles
+        # 桌面端 windows 实现(命名互斥体/注册表自启/纯 Go 托盘)只在
+        # GOOS=windows 时编译;release.yml 只在打 tag 时交叉编译,
+        # 这里保证每次 push/PR 都覆盖 Windows 桌面形态的编译
+        run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -o /dev/null .

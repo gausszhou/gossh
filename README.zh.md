@@ -31,8 +31,8 @@ gossh serve
   (见 [ADR 0007](docs/adr/0007-host-forwards-resident.md))
 - **断开存活**:浏览器断开或刷新,SSH 会话继续存活,空闲超时(默认 900s)后销毁
 - **单二进制交付**:前端经 `go:embed` 内嵌,跨平台编译无需 Node 运行时
-- **桌面形态(Linux)**:`gossh app` 托盘常驻、开机自启、单实例;自动开浏览器并
-  注入令牌;Release 附带免安装的 AppImage
+- **桌面形态(Linux + Windows)**:`gossh app` 托盘常驻、开机自启、单实例;自动开浏览器并
+  注入令牌;Linux Release 附带免安装的 AppImage,Windows 用默认二进制即可
 
 ## 安装
 
@@ -78,7 +78,7 @@ gossh serve --ws-origin '^http://127\.0\.0\.1'   # 额外限制 WebSocket 来源
 2. 点主机行「连接」→ 需要密码/密钥口令时输入,可选「保存到钥匙串」;
 3. 页签里干活;SFTP、转发从页签工具栏进入。
 
-### 桌面形态(Linux)
+### 桌面形态
 
 ```sh
 gossh app              # 托盘常驻 + 自动开浏览器(令牌自动注入 URL)
@@ -86,11 +86,15 @@ gossh app --no-browser # 只进托盘不弹浏览器(开机自启条目用这个
 ```
 
 - 服务与托盘同进程常驻:关浏览器不影响会话,托盘「退出」才停服销毁会话
-- 重复运行 `gossh app` 只会打开已有实例的界面(单实例锁,`~/.gossh/app.lock`)
-- 托盘菜单:**打开界面 / 开机自启(勾选)/ 退出**;自启状态 =
-  `~/.config/autostart/gossh.desktop` 文件是否存在
+- 重复运行 `gossh app` 只会打开已有实例的界面(单实例:Linux 为
+  `flock ~/.gossh/app.lock`,Windows 为命名互斥体 `Local\gossh-app-<用户>`)
+- 托盘菜单:**打开界面 / 开机自启(勾选)/ 退出**
+  - Linux:自启状态 = `~/.config/autostart/gossh.desktop` 文件是否存在
+  - Windows:自启状态 = HKCU `...\CurrentVersion\Run` 下的 `GoSSH` 值;
+    **默认 `make build` 的 windows 二进制即可跑 `gossh app`**——托盘是纯 Go
+    的 win32 消息循环,无需 cgo、无额外运行时
 - Linux 桌面用户建议直接用 Release 里的 **AppImage**:双击即用、免安装
-- 托盘依赖 GTK/AppIndicator(cgo):`make build` 的 `CGO_ENABLED=0` 二进制运行
+- Linux 托盘依赖 GTK/AppIndicator(cgo):`CGO_ENABLED=0` 二进制运行
   `gossh app` 会提示改用 `gossh serve`;AppImage 与 CI 自带 cgo 构建
 - 详见 [ADR 0006](docs/adr/0006-desktop-app.md)
 

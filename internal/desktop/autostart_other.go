@@ -1,9 +1,9 @@
-//go:build !linux
+//go:build !linux && !windows
 
 package desktop
 
-// IsAutostart 非 linux 平台暂不支持。
+// IsAutostart 未支持平台暂不可用。
 func IsAutostart() bool { return false }
 
-// SetAutostart 非 linux 平台暂不支持。
+// SetAutostart 未支持平台暂不可用。
 func SetAutostart(enabled bool) error { return errUnsupported }
