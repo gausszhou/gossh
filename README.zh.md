@@ -17,8 +17,11 @@ gossh serve
 ## 特性
 
 - **主机清单**:CRUD、分组、搜索、`via` 跳板链(任意深度,ProxyJump 语义)
-- **多会话页签**:SSH 会话 / 单命令执行结果两类页签并存,
-  页签可左右拖拽排序,顺序按设备持久化(localStorage `gossh.tabOrder`)
+- **多会话页签**:SSH 会话页签可左右拖拽排序,顺序按设备持久化
+  (localStorage `gossh.tabOrder`)
+- **单命令执行**(编译期可选):`gossh run <host> '<cmd>'`(退出码直通)与
+  浏览器运行结果页签。**默认构建不编译**——`make build RUN=1` 启用
+  (`-tags run` + 前端 `VITE_RUN=1`)
 - **SFTP**(编译期可选):在会话连接上浏览/传输文件。**默认构建不编译**
   以保持二进制精简——`make build SFTP=1` 启用(Go `-tags sftp` + 前端
   `VITE_SFTP=1`,Makefile 已同源接线)
@@ -132,11 +135,11 @@ apps/web            Vue3 + Vite + xterm.js(页签/列表/SFTP)
 
 ```sh
 make install   # pnpm install
-make build     # 前端 + static + ./build/gossh(SFTP 默认关闭)
-make build SFTP=1   # 同上,启用 SFTP(Go -tags sftp + VITE_SFTP=1)
+make build     # 前端 + static + ./build/gossh(SFTP/run 默认关闭)
+make build SFTP=1 RUN=1    # 启用 SFTP 与单命令执行(Go tags + VITE_* 同源)
 make test      # go vet + gofmt + go test(含搬迁自 gotty 的核心测试)
 make release   # linux/amd64+arm64, darwin/amd64+arm64, windows/amd64
-scripts/smoke.sh   # 对本地 sshd 的端到端冒烟(SFTP 步骤按编译开关跳过)
+scripts/smoke.sh   # 对本地 sshd 的端到端冒烟(SFTP/run 步骤按编译开关跳过)
 ```
 
 ## 许可

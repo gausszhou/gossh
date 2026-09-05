@@ -38,7 +38,7 @@
       <div class="sftp-panel-header">
         <span class="sftp-panel-title">📁 {{ activeSshTab.hostLabel || activeSshTab.title }}</span>
         <span class="sftp-panel-actions">
-          <button class="sftp-panel-run" :title="t('host.act.run')" @click="runHostOfActiveWorkbench">▶</button>
+          <button v-if="RUN_ENABLED" class="sftp-panel-run" :title="t('host.act.run')" @click="runHostOfActiveWorkbench">▶</button>
           <button
           class="sftp-panel-toggle"
           :title="sftpPanelCollapsed ? t('sftp.expand') : t('sftp.collapse')"
@@ -84,7 +84,7 @@
             @forwards="openForwardModal(tab)"
           />
           <RunView
-            v-else-if="tab.kind === 'run'"
+            v-else-if="RUN_ENABLED && tab.kind === 'run'"
             v-show="tab.id === activeTabId"
             :ref="(el) => setViewRef(tab.id, el)"
             :run="tab.run!"
@@ -122,6 +122,7 @@
       @saved="onHostSaved"
     />
     <RunModal
+      v-if="RUN_ENABLED"
       :open="runModalOpen"
       :host="runModalHost"
       @close="runModalOpen = false"
@@ -163,19 +164,23 @@ import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref } from 
 import TabBar from './components/TabBar.vue'
 import HostList from './components/HostList.vue'
 import HostFormModal from './components/HostFormModal.vue'
-import RunModal from './components/RunModal.vue'
 import CredentialsModal from './components/CredentialsModal.vue'
 import ForwardModal from './components/ForwardModal.vue'
 import HostForwardsModal from './components/HostForwardsModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import SshView from './components/SshView.vue'
-// SFTP 面板按编译期开关加载:VITE_SFTP=1 时懒加载组件,否则不参与渲染
-// (与后端 -tags sftp 同源,见 utils/features.ts 与 Makefile SFTP)
-import { SFTP_ENABLED } from './utils/features'
+// 特性面板按编译期开关懒加载(与后端 build tags 同源,见 utils/features.ts
+// 与 Makefile SFTP/RUN):禁用时组件为 null,模板侧已加 RUN_ENABLED/SFTP_ENABLED 门控
+import { SFTP_ENABLED, RUN_ENABLED } from './utils/features'
 const SFTPView = SFTP_ENABLED
     ? defineAsyncComponent(() => import('./components/SFTPView.vue'))
     : null
-import RunView from './components/RunView.vue'
+const RunModal = RUN_ENABLED
+    ? defineAsyncComponent(() => import('./components/RunModal.vue'))
+    : null
+const RunView = RUN_ENABLED
+    ? defineAsyncComponent(() => import('./components/RunView.vue'))
+    : null
 import {
     listHosts, createSession, checkSessions, destroySession, updateSessionTitle,
     isCredentialError, getPageTitle, getToken, APIError,
@@ -340,6 +345,7 @@ const runModalOpen = ref(false)
 const runModalHost = ref<Host | null>(null)
 
 function openRunModal(host: Host) {
+    if (!RUN_ENABLED) return
     runModalHost.value = host
     runModalOpen.value = true
 }

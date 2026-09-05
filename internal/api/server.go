@@ -314,8 +314,8 @@ func (server *Server) setupHandlers() http.Handler {
 	apiMux.HandleFunc("GET /api/hosts/{id}/parents", server.handleHostParents)
 	apiMux.HandleFunc("GET /api/hosts/{id}/forwards", server.handleListHostForwards)
 
-	// REST API — single-command execution
-	apiMux.HandleFunc("POST /api/run", server.handleRun)
+	// REST API — single-command execution(默认构建不含,Makefile RUN=1 开启)
+	server.registerRunRoutes(apiMux)
 
 	// REST API — TOFU trust store management
 	apiMux.HandleFunc("GET /api/known-hosts", server.handleListKnownHosts)

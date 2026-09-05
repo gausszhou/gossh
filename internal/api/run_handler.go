@@ -1,3 +1,5 @@
+//go:build run
+
 package api
 
 import (
@@ -154,14 +156,4 @@ func (server *Server) executeRun(req runRequest, timeout time.Duration) (*runRes
 		ExitCode: exitCode,
 		Error:    errStr,
 	}, nil
-}
-
-// savePasswordFor stores the password for the host's user@addr in the
-// keyring (the browser "save to keyring" checkbox).
-func (server *Server) savePasswordFor(hostID, password string) error {
-	h, err := server.inventory.Get(hostID)
-	if err != nil {
-		return err
-	}
-	return server.secrets.SetPassword(h.Addr(), h.User, password)
 }

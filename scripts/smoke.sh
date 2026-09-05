@@ -43,10 +43,16 @@ HOSTID=$(curl -s -X POST "$API/api/hosts" "${H[@]}" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
 
 echo "== 3. run command (TOFU pin + exit code) =="
-OUT=$(curl -s -X POST "$API/api/run" "${H[@]}" \
-  -d "{\"host_id\":\"$HOSTID\",\"command\":\"echo SMOKE_OK && exit 7\"}")
-echo "$OUT" | grep -q SMOKE_OK
-echo "$OUT" | python3 -c 'import json,sys; assert json.load(sys.stdin)["exit_code"]==7'
+# 单命令执行默认不编译(-tags run 才有);端点 404 则跳过该步骤
+if curl -s -o /dev/null -w '%{http_code}' -X POST "$API/api/run" "${H[@]}" \
+  -d '{"host_id":"x","command":"true"}' | grep -q 404; then
+  echo "   (run 未编译进二进制,跳过)"
+else
+  OUT=$(curl -s -X POST "$API/api/run" "${H[@]}" \
+    -d "{\"host_id\":\"$HOSTID\",\"command\":\"echo SMOKE_OK && exit 7\"}")
+  echo "$OUT" | grep -q SMOKE_OK
+  echo "$OUT" | python3 -c 'import json,sys; assert json.load(sys.stdin)["exit_code"]==7'
+fi
 
 echo "== 4. interactive session + screen mirror =="
 curl -s -X POST "$API/api/sessions" "${H[@]}" \

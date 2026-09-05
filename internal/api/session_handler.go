@@ -13,6 +13,17 @@ import (
 	"github.com/gausszhou/gossh/internal/utils"
 )
 
+// savePasswordFor stores the password for the host's user@addr in the
+// keyring (the browser "save to keyring" checkbox). 与 run 特性无关,
+// 会话连接与单命令执行共用,故放本文件(不随 -tags run 编译)。
+func (server *Server) savePasswordFor(hostID, password string) error {
+	h, err := server.inventory.Get(hostID)
+	if err != nil {
+		return err
+	}
+	return server.secrets.SetPassword(h.Addr(), h.User, password)
+}
+
 // forwardProvidedSecrets 把本次会话请求里浏览器输入的密码/口令构造成
 // 转发连接拨号凭据(仅本次有效,不入 keyring;未提供则为空)。
 func forwardProvidedSecrets(req createSessionRequest) *sshx.ProvidedSecrets {

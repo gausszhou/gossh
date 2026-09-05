@@ -37,6 +37,6 @@ func init() {
 	rootCmd.AddCommand(buildServeCmd())
 	rootCmd.AddCommand(buildAppCmd())
 	rootCmd.AddCommand(buildHostsCmd())
-	rootCmd.AddCommand(buildRunCmd())
+	registerRunCmd(rootCmd) // `gossh run` 按编译开关注册(Makefile RUN=1)
 	rootCmd.AddCommand(buildVersionCmd())
 }

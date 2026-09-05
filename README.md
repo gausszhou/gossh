@@ -23,9 +23,12 @@ the process.
 
 - **Host inventory**: create/update/delete, groups, search, and `via`
   jump chains of arbitrary depth (ProxyJump semantics)
-- **Multi-session tabs**: SSH sessions and single-command
-  execution results side by side; drag tabs to reorder, order persisted
-  per device in localStorage (`gossh.tabOrder`)
+- **Multi-session tabs**: SSH sessions side by side; drag tabs to
+  reorder, order persisted per device in localStorage (`gossh.tabOrder`)
+- **Single-command run** (compile-time optional): `gossh run <host>
+  '<command>'` (exit codes pass through) and browser run-result tabs.
+  **Disabled in default builds** — enable with `make build RUN=1`
+  (Go `-tags run` + frontend `VITE_RUN=1`)
 - **SFTP** (compile-time optional): browse/transfer files over the session
   connection. **Disabled in default builds** to keep the binary lean —
   enable with `make build SFTP=1` (Go `-tags sftp` + frontend
@@ -163,11 +166,11 @@ See `docs/adr/` (0001–0005) and `CONTEXT.md` (domain glossary).
 
 ```sh
 make install   # pnpm install
-make build     # frontend + static + ./build/gossh (SFTP 默认关闭)
-make build SFTP=1   # 同左,启用 SFTP(Go -tags sftp + VITE_SFTP=1)
+make build     # frontend + static + ./build/gossh (SFTP/run 默认关闭)
+make build SFTP=1 RUN=1    # 启用 SFTP 与单命令执行(Go tags + VITE_* 同源)
 make test      # go vet + gofmt + go test (including core tests ported from gotty)
 make release   # linux/amd64+arm64, darwin/amd64+arm64, windows/amd64
-scripts/smoke.sh   # end-to-end smoke against a local sshd (SFTP 步骤按编译开关跳过)
+scripts/smoke.sh   # end-to-end smoke against a local sshd (SFTP/run 步骤按编译开关跳过)
 ```
 
 ## License
