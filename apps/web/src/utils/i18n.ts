@@ -30,8 +30,9 @@ const messages: Record<Lang, Record<string, string>> = {
         'token.submit': '进入',
         'token.invalid': '令牌不能为空或被拒绝,请核对服务端打印的 URL。',
         // ── 主机列表 ──
+        'host.title': '主机',
         'host.empty': '暂无主机',
-        'host.emptyHint': '点击右上角「新建主机」添加第一条记录',
+        'host.emptyHint': '点击上方「新建主机」添加第一条记录',
         'host.collapse': '折叠主机列表',
         'host.expand': '展开主机列表',
         'host.act.connect': '连接',
@@ -171,8 +172,9 @@ const messages: Record<Lang, Record<string, string>> = {
         'token.submit': 'Enter',
         'token.invalid': 'Token cannot be empty or was rejected; check the URL printed by the server.',
         // ── Host list ──
+        'host.title': 'Hosts',
         'host.empty': 'No hosts yet',
-        'host.emptyHint': 'Click "New host" in the top-right to add one',
+        'host.emptyHint': 'Click "New host" above to add one',
         'host.collapse': 'Collapse host list',
         'host.expand': 'Expand host list',
         'host.act.connect': 'Connect',

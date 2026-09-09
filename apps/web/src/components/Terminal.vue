@@ -61,6 +61,9 @@ function terminalTheme(theme: Theme): Record<string, string> {
 onMounted(() => {
   term = new XTerminal({
     cursorBlink: true,
+    // 失焦时仍以实心块显示光标:默认 outline 在 WebGL 渲染器下可能不绘制,
+    // 表现就是“光标看不见”;block 无论聚焦与否都稳定渲染。
+    cursorInactiveStyle: 'block',
     fontSize: 14,
     fontFamily: FONT_FAMILY,
     theme: terminalTheme(currentTheme()),

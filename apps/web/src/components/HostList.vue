@@ -1,5 +1,11 @@
 <template>
   <div class="host-list">
+    <!-- 侧栏头部:标题 + 新建主机(原在页签栏右侧,迁入左侧列表) -->
+    <div class="host-header">
+      <span class="host-header-title">{{ t('host.title') }}</span>
+      <button class="new-host-btn" :title="t('tab.newHost')" @click="emit('new-host')">＋ {{ t('tab.newHost') }}</button>
+    </div>
+
     <div v-if="hosts.length === 0" class="host-empty">
       <div class="host-empty-title">{{ t('host.empty') }}</div>
       <div class="host-empty-hint">{{ t('host.emptyHint') }}</div>
@@ -61,6 +67,8 @@ const emit = defineEmits<{
     (e: 'edit', host: Host): void
     // 已确认删除(列表内两段式确认);App 调 API 后刷新
     (e: 'delete', host: Host): void
+    // 新建主机(打开 HostFormModal,App 侧 openHostForm(null))
+    (e: 'new-host'): void
 }>()
 
 const confirmingDelete = ref<string | null>(null)
@@ -114,6 +122,42 @@ function showDeleteError() {
     flex-direction: column;
     height: 100%;
     min-width: 0;
+}
+
+/* ── 侧栏头部(标题 + 新建主机) ── */
+.host-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 32px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--bg-bar-border);
+    user-select: none;
+}
+
+.host-header-title {
+    font-size: 12px;
+    color: var(--fg-muted);
+    white-space: nowrap;
+}
+
+.new-host-btn {
+    background: none;
+    border: 1px solid var(--border-tab);
+    border-radius: 3px;
+    color: var(--accent);
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1;
+    padding: 4px 8px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.new-host-btn:hover {
+    background: var(--bg-tab-hover);
+    color: var(--fg-bright);
 }
 
 .host-scroll {

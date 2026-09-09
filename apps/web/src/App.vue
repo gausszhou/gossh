@@ -29,6 +29,7 @@
           @forwards="openHostForwards"
           @edit="editHost"
           @delete="refreshHosts"
+          @new-host="openHostForm(null)"
         />
       </div>
     </aside>
@@ -60,7 +61,6 @@
         @close="closeTab"
         @reorder="onReorder"
         @settings="settingsOpen = true"
-        @new-host="openHostForm(null)"
         @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"
       />
 

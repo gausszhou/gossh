@@ -32,11 +32,8 @@
       <button class="tab-close" :title="t('tab.close')" @click.stop="emit('close', tab)">✕</button>
     </div>
 
-    <!-- 右侧工具体栏:新建主机 + 设置 -->
+    <!-- 右侧工具体栏:设置(新建主机已迁至左侧主机列表) -->
     <div class="tab-actions">
-      <button class="icon-btn icon-btn-text" :title="t('tab.newHost')" @click="emit('new-host')">
-        ＋ {{ t('tab.newHost') }}
-      </button>
       <button class="icon-btn" :title="t('tab.settings')" @click="emit('settings')">⚙</button>
     </div>
   </div>
@@ -61,7 +58,6 @@ const emit = defineEmits<{
     (e: 'close', tab: AppTab): void
     (e: 'reorder', from: number, to: number): void
     (e: 'settings'): void
-    (e: 'new-host'): void
     (e: 'toggle-sidebar'): void
 }>()
 
