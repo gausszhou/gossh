@@ -87,7 +87,10 @@
           <div v-else class="empty-card">
             <Terminal :size="42" class="empty-card-icon" />
             <span class="empty-card-title">{{ t('empty.title') }}</span>
-            <span class="empty-card-hint">{{ t('empty.hint') }}</span>
+            <!-- 提示里的 ▶ 用行内按钮同一个图标组件,而不是字体字形(跨平台字形不一致) -->
+            <span class="empty-card-hint">
+              {{ t('empty.hintPre') }}<Play :size="12" class="empty-hint-icon" aria-hidden="true" />{{ t('empty.hintPost') }}
+            </span>
           </div>
         </div>
       </div>
@@ -134,7 +137,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
-import { Terminal } from 'lucide-vue-next'
+import { Play, Terminal } from 'lucide-vue-next'
 import TabBar from './components/TabBar.vue'
 import HostList from './components/HostList.vue'
 import HostFormModal from './components/HostFormModal.vue'
@@ -833,9 +836,18 @@ body {
 }
 
 .empty-card-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     font-size: 13px;
     line-height: 1.5;
     color: var(--fg-hint);
+}
+
+/* 行内图标:与文本基线对齐,颜色跟随提示文字 */
+.empty-hint-icon {
+    flex: 0 0 auto;
+    color: var(--net-good);
 }
 
 .empty-error {

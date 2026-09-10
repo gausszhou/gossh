@@ -43,7 +43,8 @@ const messages: Record<Lang, Record<string, string>> = {
         'host.act.edit': '编辑',
         'host.act.delete': '删除',
         'host.act.more': '更多操作',
-        'host.rowHint': '点 ▶ 连接;右键查看更多操作',
+        // 原生 tooltip 只能渲染纯文本,这里用「连接」按钮名指代那个图标
+        'host.rowHint': '点行内「连接」按钮开会话;右键查看更多操作',
         'host.act.confirmDelete': '确认删除?',
         'host.deleteFailed': '删除失败',
         'host.credDefault': 'default',
@@ -77,7 +78,9 @@ const messages: Record<Lang, Record<string, string>> = {
         'cred.busy': '正在连接…',
         // ── 页签内容 ──
         'empty.title': '打开一个主机会话',
-        'empty.hint': '把鼠标移到左侧主机上,点 ▶ 打开会话',
+        // 提示文案在图标处拆成前后两段:中间由模板插入与行内按钮同源的图标组件
+        'empty.hintPre': '把鼠标移到左侧主机上,点',
+        'empty.hintPost': '打开会话',
         'empty.loading': '正在连接…',
         'dialog.gone': '会话已销毁',
         'dialog.lost': '连接已断开',
@@ -189,7 +192,8 @@ const messages: Record<Lang, Record<string, string>> = {
         'host.act.edit': 'Edit',
         'host.act.delete': 'Delete',
         'host.act.more': 'More actions',
-        'host.rowHint': 'Click ▶ to connect; right-click for more actions',
+        // Native tooltips are plain text only, so refer to the button by name.
+        'host.rowHint': 'Click the row\'s Connect button to open a session; right-click for more',
         'host.act.confirmDelete': 'Confirm?',
         'host.deleteFailed': 'Failed to delete',
         'host.credDefault': 'default',
@@ -223,7 +227,10 @@ const messages: Record<Lang, Record<string, string>> = {
         'cred.busy': 'Connecting…',
         // ── Tab content ──
         'empty.title': 'Open a host session',
-        'empty.hint': 'Hover a host on the left and click ▶ to open a session',
+        // Hint is split around the icon: the template inserts the same icon
+        // component the row action button uses (no font glyph).
+        'empty.hintPre': 'Hover a host on the left and click',
+        'empty.hintPost': 'to open a session',
         'empty.loading': 'Connecting…',
         'dialog.gone': 'Session closed',
         'dialog.lost': 'Connection lost',
