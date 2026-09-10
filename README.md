@@ -4,9 +4,10 @@
 
 An SSH client built on the Go stack: a small local server runs on your
 machine and your browser **is** the terminal UI. Manage a host inventory,
-keep multiple sessions in tabs, transfer files over SFTP, set up port
-forwards, chain through jump hosts, and store credentials in the system
-keyring.
+keep multiple sessions in tabs, set up port forwards, and store credentials
+in the system keyring.
+
+![GoSSH UI](assets/demo.gif)
 
 ```
 gossh serve
@@ -24,11 +25,6 @@ the process.
 - **Host inventory**: create/update/delete
 - **Multi-session tabs**: SSH sessions side by side; drag tabs to
   reorder, order persisted per device in localStorage (`gossh.tabOrder`)
-  '<command>'` (exit codes pass through) and browser run-result tabs.
-- **SFTP** (compile-time optional): browse/transfer files over the session
-  connection. **Disabled in default builds** to keep the binary lean —
-  enable with `make build SFTP=1` (Go `-tags sftp` + frontend
-  `VITE_ENABLE_SFTP=1`, wired together in the Makefile)
 - **Credentials**: private key paths, ssh-agent, or passwords; passwords
   and key passphrases are stored encrypted in the system keyring
   (Linux Secret Service / macOS Keychain / Windows Credential Manager),
@@ -94,10 +90,10 @@ First-run flow:
 
 1. Add hosts with `gossh hosts add` or through the "new host" form in
    the browser;
-2. Click "connect" on a host row — enter a password / key passphrase
-   when asked, optionally "save to keyring";
-3. Work in the session tab; SFTP and port forwards live in the tab
-   toolbar.
+2. Hover a host row and click the ▶ button — enter a password / key
+   passphrase when asked, optionally "save to keyring";
+3. Work in the session tab; port forwards and edit/delete live in the
+   host row actions and its right-click menu.
 
 ### Desktop mode
 
@@ -151,7 +147,7 @@ gossh version
 ## Architecture
 
 ```
-internal/api        HTTP/WS routing, token, hosts/SFTP/forwards handlers
+internal/api        HTTP/WS routing, token, hosts/forwards handlers
 internal/session    session registry and lifecycle (idempotent create,
                     preemption, idle expiry — ported from gotty)
 internal/terminal   browser binary frame protocol ("webtty", ported from gotty)
@@ -159,20 +155,21 @@ internal/sshtty     the session.Terminal implementation over SSH (remote PTY she
 internal/sshx       direct dialing, credential resolution, TOFU trust store,
                     keyring
 internal/host       host inventory (hosts.json)
-apps/web            Vue3 + Vite + xterm.js (tabs / inventory / SFTP)
+apps/web            Vue3 + Vite + xterm.js (tabs / host inventory)
 ```
 
-See `docs/adr/` (0001–0005) and `CONTEXT.md` (domain glossary).
+See `docs/adr/` (0001–0005), `CONTEXT.md` (domain glossary) and
+`docs/design/vscode-style-ui-guide.md` (UI style guide).
 
 ## Development
 
 ```sh
 make install   # pnpm install
-make build     # frontend + static + ./build/gossh (SFTP 默认关闭)
-make build SFTP=1   # 启用 SFTP(Go -tags sftp + VITE_ENABLE_SFTP=1)
+make build     # frontend + static + ./build/gossh
 make test      # go vet + gofmt + go test (including core tests ported from gotty)
 make release   # linux/amd64+arm64, darwin/amd64+arm64, windows/amd64
-scripts/smoke.sh   # end-to-end smoke against a local sshd (SFTP 步骤按编译开关跳过)
+scripts/build-local.ps1   # Windows: build + install to ~/.local/bin in one go
+scripts/smoke.sh   # end-to-end smoke against a local sshd
 ```
 
 ## License

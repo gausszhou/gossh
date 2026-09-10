@@ -3,7 +3,9 @@
 [English](README.md) | **简体中文**
 
 一个基于 Go 技术栈的 SSH 客户端:本地运行一个服务端,浏览器就是你的终端 UI。
-管理主机清单、多会话页签、SFTP 文件传输、端口转发、凭据入库(keyring)。
+管理主机清单、多会话页签、端口转发、凭据入库(keyring)。
+
+![GoSSH 界面](assets/demo.gif)
 
 ```
 gossh serve
@@ -19,9 +21,6 @@ gossh serve
 - **主机清单**:CRUD
 - **多会话页签**:SSH 会话页签可左右拖拽排序,顺序按设备持久化
   (localStorage `gossh.tabOrder`)
-- **SFTP**(编译期可选):在会话连接上浏览/传输文件。**默认构建不编译**
-  以保持二进制精简——`make build SFTP=1` 启用(Go `-tags sftp` + 前端
-  `VITE_ENABLE_SFTP=1`,Makefile 已同源接线)
 - **凭据**:私钥文件路径引用、ssh-agent、密码;密码与密钥口令经系统 keyring
   (Linux Secret Service / macOS Keychain / Windows Credential Manager)加密保存,
   无 keyring 守护进程时自动回退为内存保存
@@ -77,8 +76,8 @@ gossh serve --ws-origin '^http://127\.0\.0\.1'   # 额外限制 WebSocket 来源
 首启体验:
 
 1. `gossh hosts add` 添加主机,或在浏览器「新建主机」表单里填写;
-2. 点主机行「连接」→ 需要密码/密钥口令时输入,可选「保存到钥匙串」;
-3. 页签里干活;SFTP、转发从页签工具栏进入。
+2. 鼠标移到主机行上,点 ▶ 连接 → 需要密码/密钥口令时输入,可选「保存到钥匙串」;
+3. 页签里干活;端口转发与编辑/删除在主机行的行内按钮与其右键菜单里。
 
 ### 桌面形态
 
@@ -121,26 +120,27 @@ gossh version
 ## 架构
 
 ```
-internal/api        HTTP/WS 路由、令牌、主机/SFTP/转发处理器
+internal/api        HTTP/WS 路由、令牌、主机/转发处理器
 internal/session    会话注册表与生命周期(幂等创建、抢占、空闲淘汰,搬迁自 gotty)
 internal/terminal   浏览器二进制帧协议(webtty,搬迁自 gotty)
 internal/sshtty     session.Terminal 的 SSH 实现(远端 PTY shell)
 internal/sshx       直连拨号、凭据解析、TOFU 信任库、keyring
 internal/host       主机清单(hosts.json)
-apps/web            Vue3 + Vite + xterm.js(页签/列表/SFTP)
+apps/web            Vue3 + Vite + xterm.js(页签/主机列表)
 ```
 
-详见 `docs/adr/`(0001-0005)与 `CONTEXT.md`(领域术语)。
+详见 `docs/adr/`(0001-0005)、`CONTEXT.md`(领域术语)与
+`docs/design/vscode-style-ui-guide.md`(UI 样式指导)。
 
 ## 开发
 
 ```sh
 make install   # pnpm install
-make build     # 前端 + static + ./build/gossh(SFTP 默认关闭)
-make build SFTP=1   # 启用 SFTP(Go -tags sftp + VITE_ENABLE_SFTP=1)
+make build     # 前端 + static + ./build/gossh
 make test      # go vet + gofmt + go test(含搬迁自 gotty 的核心测试)
 make release   # linux/amd64+arm64, darwin/amd64+arm64, windows/amd64
-scripts/smoke.sh   # 对本地 sshd 的端到端冒烟(SFTP 步骤按编译开关跳过)
+scripts/build-local.ps1   # Windows:一键构建 + 安装到 ~/.local/bin
+scripts/smoke.sh   # 对本地 sshd 的端到端冒烟
 ```
 
 ## 许可
