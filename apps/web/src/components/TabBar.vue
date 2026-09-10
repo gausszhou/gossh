@@ -1,12 +1,14 @@
 <template>
   <div ref="barEl" class="tab-bar" @dragover="onBarDragOver" @drop.prevent="onDrop">
-    <!-- 主机列表折叠开关(固定在左侧) -->
+    <!-- 主机列表展开/收起(固定在页签栏最左侧,滚动时保持可见) -->
     <div class="tab-actions tab-actions-left">
       <button
         class="icon-btn"
         :title="collapsed ? t('host.expand') : t('host.collapse')"
         @click="emit('toggle-sidebar')"
-      ><ChevronsRight v-if="collapsed" :size="14" /><ChevronsLeft v-else :size="14" /></button>
+      >
+        <PanelLeftOpen v-if="collapsed" :size="15" /><PanelLeftClose v-else :size="15" />
+      </button>
     </div>
 
     <div
@@ -26,22 +28,25 @@
       @dragstart="onDragStart($event, tab.id)"
       @dragend="onDragEnd"
     >
-      <span v-if="tab.kind === 'ssh'" class="state-dot" :class="stateClass(tab)"></span>
-      <span v-else class="kind-badge" :class="'kind-' + tab.kind">{{ kindLabel(tab.kind) }}</span>
+      <span class="state-dot" :class="stateClass(tab)"></span>
       <span class="tab-title">{{ tab.title }}</span>
-      <button class="tab-close" :title="t('tab.close')" @click.stop="emit('close', tab)">✕</button>
+      <button class="tab-close" :title="t('tab.close')" @click.stop="emit('close', tab)">
+        <X :size="13" />
+      </button>
     </div>
 
     <!-- 右侧工具体栏:设置(新建主机已迁至左侧主机列表) -->
     <div class="tab-actions">
-      <button class="icon-btn" :title="t('tab.settings')" @click="emit('settings')">⚙</button>
+      <button class="icon-btn" :title="t('tab.settings')" @click="emit('settings')">
+        <Settings :size="15" />
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onBeforeUnmount } from 'vue'
-import { ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
+import { PanelLeftClose, PanelLeftOpen, Settings, X } from 'lucide-vue-next'
 import { t } from '../utils/i18n'
 import { logger } from '../utils/logger'
 import type { AppTab } from '../utils/types'
@@ -60,12 +65,6 @@ const emit = defineEmits<{
     (e: 'settings'): void
     (e: 'toggle-sidebar'): void
 }>()
-
-// sftp 页签的小徽标(ssh 用状态圆点,不用徽标)
-function kindLabel(kind: AppTab['kind']): string {
-    if (kind === 'sftp') return t('sftp.tabSuffix')
-    return ''
-}
 
 function stateClass(tab: AppTab): string {
     if (tab.connected) return 'dot-running'
@@ -174,7 +173,7 @@ onBeforeUnmount(() => {
 .tab-bar {
     display: flex;
     align-items: stretch;
-    height: 32px;
+    height: var(--bar-height);
     flex: 0 0 auto;
     background: var(--bg-bar);
     border-bottom: 1px solid var(--bg-bar-border);
@@ -182,23 +181,48 @@ onBeforeUnmount(() => {
     overflow-y: hidden;
     position: relative;
     user-select: none;
+    scrollbar-width: none; /* 页签栏不显示横向滚动条 */
+}
+
+.tab-bar::-webkit-scrollbar {
+    height: 0;
 }
 
 .tab {
     display: flex;
     align-items: center;
-    gap: 6px;
-    max-width: 220px;
-    min-width: 100px;
-    padding: 0 8px;
-    border-right: 1px solid var(--bg-bar-border);
+    gap: 5px;
+    max-width: 240px;
+    min-width: 0;
+    padding: 0 8px 0 10px;
+    border-right: 1px solid var(--border-tab);
     color: var(--fg-dim);
     font-size: 13px;
     cursor: grab;
     white-space: nowrap;
     flex: 0 0 auto;
     background: var(--bg-tab);
-    border-top: 1px solid var(--border-tab);
+    position: relative;
+}
+
+/* VSCode 活动页签:面与编辑器一致,顶部 1px 强调条 */
+.tab.active {
+    background: var(--bg-tab-active);
+    color: var(--fg-bright);
+}
+
+.tab.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--accent);
+}
+
+.tab:hover:not(.active) {
+    background: color-mix(in srgb, var(--bg-tab-hover) 55%, var(--bg-tab));
 }
 
 /* 拖拽中的页签:半透明 + 抓取指针 */
@@ -216,12 +240,6 @@ onBeforeUnmount(() => {
 .tab.drop-right {
     box-shadow: inset -2px 0 0 var(--accent);
     cursor: grabbing;
-}
-
-.tab.active {
-    background: var(--bg-tab-active);
-    color: var(--fg-bright);
-    border-top: 1px solid var(--accent); /* VSCode 活动页签顶条 */
 }
 
 .tab-title {
@@ -250,31 +268,27 @@ onBeforeUnmount(() => {
     background: var(--dot-dead);
 }
 
-/* sftp 页签的类型徽标 */
-.kind-badge {
-    flex: 0 0 auto;
-    font-size: 10px;
-    line-height: 1;
-    padding: 2px 4px;
-    border-radius: 3px;
-    border: 1px solid var(--border-tab);
-    color: var(--fg-muted);
-}
-
-.kind-sftp {
-    color: #58a6ff;
-}
-
 .tab-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
     background: none;
     border: none;
     color: var(--fg-dim);
-    font-size: 11px;
     line-height: 1;
-    padding: 2px 4px;
-    border-radius: 3px;
+    padding: 0;
+    border-radius: var(--radius-md);
     cursor: pointer;
     flex: 0 0 auto;
+    opacity: 0;
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close,
+.tab-close:focus-visible {
+    opacity: 1;
 }
 
 .tab-close:hover {
@@ -294,23 +308,27 @@ onBeforeUnmount(() => {
     background: var(--bg-bar);
 }
 
-/* 折叠开关固定在左侧,滚动时保持可见 */
+/* 折叠态:展开入口固定在页签栏最左,滚动时保持可见 */
 .tab-actions-left {
     margin-left: 0;
+    margin-right: 4px;
     position: sticky;
     left: 0;
     z-index: 2;
+    padding: 0 2px 0 4px;
 }
 
 .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
     background: none;
     border: none;
+    border-radius: var(--radius-md);
     color: var(--fg);
-    font-size: 14px;
     cursor: pointer;
-    padding: 2px 8px;
-    line-height: 1;
-    border-radius: 3px;
 }
 
 .icon-btn:hover {

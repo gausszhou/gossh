@@ -77,7 +77,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'cred.busy': '正在连接…',
         // ── 页签内容 ──
         'empty.title': '打开一个主机会话',
-        'empty.hint': '从左侧主机列表选择主机,点「连接」打开会话',
+        'empty.hint': '把鼠标移到左侧主机上,点 ▶ 打开会话',
         'empty.loading': '正在连接…',
         'dialog.gone': '会话已销毁',
         'dialog.lost': '连接已断开',
@@ -223,7 +223,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'cred.busy': 'Connecting…',
         // ── Tab content ──
         'empty.title': 'Open a host session',
-        'empty.hint': 'Pick a host on the left and click Connect',
+        'empty.hint': 'Hover a host on the left and click ▶ to open a session',
         'empty.loading': 'Connecting…',
         'dialog.gone': 'Session closed',
         'dialog.lost': 'Connection lost',

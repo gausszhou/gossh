@@ -1,13 +1,11 @@
 <template>
   <div class="ssh-view">
-    <!-- 会话工具栏:主机标识 + 延迟 + 端口转发入口 -->
+    <!-- 会话工具条:主机标识 + 实时延迟(SSH 属于轻量工具条,尽量不占高度) -->
     <div class="ssh-toolbar">
       <span class="ssh-host" :title="hostLabel">{{ hostLabel }}</span>
       <span v-if="latency != null" class="net-status" :class="netClass" :title="t('tab.latency')">
         {{ latency }}ms
       </span>
-      <div class="ssh-toolbar-spacer"></div>
-      <button class="tool-btn" :title="t('ssh.forward')" @click="emit('forwards')">⇄ {{ t('ssh.forward') }}</button>
     </div>
 
     <TerminalPane
@@ -45,8 +43,6 @@ const emit = defineEmits<{
     (e: 'conn', connected: boolean): void
     (e: 'tab-title', title: string): void
     (e: 'credential-required', message: string): void
-    // 请求打开端口转发弹窗
-    (e: 'forwards'): void
 }>()
 
 // 延迟颜色分级:绿(<30ms) / 黄(30~100ms) / 红(≥100ms)
@@ -80,8 +76,8 @@ defineExpose({ reattach })
 .ssh-toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    height: 28px;
+    gap: 8px;
+    height: var(--toolbar-height);
     flex: 0 0 auto;
     padding: 0 10px;
     background: var(--bg-bar);
@@ -91,43 +87,21 @@ defineExpose({ reattach })
 
 .ssh-host {
     font-size: 12px;
-    color: var(--fg-bright);
-    font-family: 'SF Mono', Consolas, monospace;
+    color: var(--fg-dim);
+    font-family: 'SF Mono', Consolas, 'DejaVu Sans Mono', monospace;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
 }
 
-.ssh-toolbar-spacer {
-    flex: 1 1 auto;
-}
-
-.tool-btn {
-    flex: 0 0 auto;
-    background: none;
-    border: 1px solid var(--border-tab);
-    border-radius: 3px;
-    color: var(--fg-dim);
-    font-size: 12px;
-    font-family: inherit;
-    line-height: 1;
-    padding: 4px 8px;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.tool-btn:hover {
-    background: var(--bg-tab-hover);
-    color: var(--fg-bright);
-}
-
 .net-status {
     flex: 0 0 auto;
-    font-family: 'SF Mono', Consolas, monospace;
-    font-size: 12px;
-    padding: 2px 6px;
-    border-radius: 3px;
+    font-family: 'SF Mono', Consolas, 'DejaVu Sans Mono', monospace;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, currentColor 12%, transparent);
 }
 
 .net-good {
