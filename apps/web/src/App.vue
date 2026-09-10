@@ -20,9 +20,13 @@
       </div>
     </div>
 
-    <!-- 左侧:主机列表栏(可折叠) -->
-    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
-      <div class="sidebar-inner">
+    <!-- 左侧:主机列表栏(可折叠;展开/收起按钮在页签栏最左侧;右缘可拖拽调宽) -->
+    <aside
+      class="sidebar"
+      :class="{ collapsed: sidebarCollapsed, resizing: resizingSidebar }"
+      :style="sidebarStyle"
+    >
+      <div class="sidebar-inner" :style="sidebarInnerStyle">
         <HostList
           :hosts="hosts"
           @connect="connectHost"
@@ -32,6 +36,13 @@
           @new-host="openHostForm(null)"
         />
       </div>
+      <span
+        v-if="!sidebarCollapsed"
+        class="sidebar-resizer"
+        :title="t('host.resize')"
+        @pointerdown="startSidebarResize"
+        @dblclick="resetSidebarWidth"
+      ></span>
     </aside>
 
     <!-- 中间:SFTP 文件列表(绑定当前活动 SSH 会话,自动开启;SFTP_ENABLED 编译期门控) -->
@@ -195,6 +206,73 @@ const sidebarCollapsed = computed({
     get: () => sideCollapsed.value,
     set: (v: boolean) => (sideCollapsed.value = v),
 })
+
+
+// ── 侧栏宽度(可拖拽调整,localStorage 持久化) ──
+const SIDEBAR_KEY = 'gossh.sidebarWidth'
+const SIDEBAR_DEFAULT = 264
+const SIDEBAR_MIN = 200
+const SIDEBAR_MAX = 560
+// 注意:200 是最小宽度而非上限;vmin 让窄屏(如侧栏占满半屏)也能用
+const sidebarMax = () => Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(window.innerWidth * 0.6)))
+
+function loadSidebarWidth(): number {
+    try {
+        const v = Number(localStorage.getItem(SIDEBAR_KEY))
+        if (Number.isFinite(v) && v >= SIDEBAR_MIN && v <= SIDEBAR_MAX) return Math.round(v)
+    } catch {
+        // localStorage 不可用时用默认值
+    }
+    return SIDEBAR_DEFAULT
+}
+
+const sidebarWidth = ref(loadSidebarWidth())
+const resizingSidebar = ref(false)
+const sidebarStyle = computed(() =>
+    sidebarCollapsed.value ? undefined : { width: `${sidebarWidth.value}px` },
+)
+// 内层固定同宽,折叠动画时内容不被压缩换行
+const sidebarInnerStyle = { width: '100%' }
+
+function saveSidebarWidth() {
+    try {
+        localStorage.setItem(SIDEBAR_KEY, String(sidebarWidth.value))
+    } catch {
+        // 忽略持久化失败
+    }
+}
+
+// 拖拽调宽:pointermove 里按指针 X 与侧栏左边界求差,并夹在 [MIN, sidebarMax] 内
+function startSidebarResize(e: PointerEvent) {
+    if (sidebarCollapsed.value) return
+    const aside = (e.currentTarget as HTMLElement).parentElement
+    if (!aside) return
+    const left = aside.getBoundingClientRect().left
+    resizingSidebar.value = true
+    const target = e.currentTarget as HTMLElement
+    target.setPointerCapture?.(e.pointerId)
+
+    const onMove = (ev: PointerEvent) => {
+        const next = Math.round(ev.clientX - left)
+        sidebarWidth.value = Math.min(sidebarMax(), Math.max(SIDEBAR_MIN, next))
+    }
+    const onUp = () => {
+        resizingSidebar.value = false
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+        saveSidebarWidth()
+        logger.info('app', 'sidebar width set to %d', sidebarWidth.value)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    e.preventDefault()
+}
+
+// 双击分隔条:恢复默认宽度
+function resetSidebarWidth() {
+    sidebarWidth.value = SIDEBAR_DEFAULT
+    saveSidebarWidth()
+}
 
 function hostLabel(h: Host): string {
     const port = h.port && h.port !== 22 ? `:${h.port}` : ''
@@ -700,13 +778,20 @@ body {
 }
 
 .sidebar {
+    position: relative;
     flex: 0 0 auto;
-    width: 264px;
+    width: 264px; /* 默认宽度;实际宽度由内联 style 覆盖(可拖拽调整) */
     height: 100%;
     overflow: hidden;
     background: var(--bg-bar);
     border-right: 1px solid var(--bg-bar-border);
-    transition: width 0.18s ease;
+    transition: width 0.13s ease-out;
+}
+
+/* 拖拽调宽期间:关掉过渡,指针跟随才不粘手 */
+.sidebar.resizing {
+    transition: none;
+    user-select: none;
 }
 
 .sidebar.collapsed {
@@ -715,10 +800,29 @@ body {
 }
 
 .sidebar-inner {
-    width: 264px;
+    width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
+}
+
+/* ── 宽度拖拽分隔条(悬停高亮,双击复位默认宽度) ── */
+.sidebar-resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 5px;
+    height: 100%;
+    z-index: 5;
+    cursor: col-resize;
+    background: transparent;
+    touch-action: none;
+    transition: background 0.12s ease-out;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer:active {
+    background: var(--accent);
 }
 
 /* ── 中间 SFTP 栏(与侧栏同风格,固定宽度,内部滚动) ── */
