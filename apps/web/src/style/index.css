@@ -1,66 +1,121 @@
-/* GoTTY 全局样式(唯一 CSS 入口,构建时内联进 main.js) */
+/* GoSSH 全局样式(唯一 CSS 入口,构建时内联进 main.js)
+ *
+ * 设计基线:VS Code 1.9x 默认配色(Dark Modern / Light Modern)。
+ * 变量名保持不变(组件按语义引用),值统一换成 VS Code 的实际色值;
+ * 控件高度(22/26px)、圆角(2/4px)、字体栈(13px UI / 12px mono)也
+ * 与 VS Code 对齐,避免"半套 VSCode"的拼凑感。
+ */
 
 /* ── 主题变量:暗色默认,亮色由 <html data-theme="light"> 覆盖 ── */
 :root {
-    --bg-app: #1e1e1e;          /* 页面主背景 */
-    --bg-bar: #252526;          /* 顶部栏 */
-    --bg-bar-border: #1e1e1e;
-    --bg-tab: #2d2d2d;          /* 页签 */
-    --bg-tab-active: #1e1e1e;   /* 活动页签 */
-    --bg-tab-hover: #3a3d41;
-    --bg-input: #3c3c3c;
-    --bg-dialog: #252526;
-    --border-dialog: #454545;
-    --border-tab: #333;
-    --fg: #cccccc;
-    --fg-dim: #969696;
-    --fg-muted: #6e7681;
-    --fg-bright: #ffffff;
-    --fg-hint: #8b949e;
-    --accent: #007fd4;
+    /* 布局面 */
+    --bg-app: #1f1f1f;              /* editor.background 缺省面 */
+    --bg-bar: #181818;              /* 侧栏 / 页签栏(sideBar.background) */
+    --bg-bar-border: #2b2b2b;       /* 面板分隔线(panel.border) */
+    --bg-tab: #181818;              /* 非活动页签 */
+    --bg-tab-active: #1f1f1f;       /* 活动页签(editor.background) */
+    --bg-tab-hover: #2a2d2e;        /* list.hoverBackground */
+    --bg-input: #313131;            /* input.background */
+    --bg-dialog: #252526;           /* 对话框 / 悬浮面 */
+    --border-dialog: #454545;       /* dialog.border */
+    --border-tab: #2b2b2b;          /* 常规描边 */
+    --border-input: #3c3c3c;        /* 输入框描边 */
+
+    /* 文本 */
+    --fg: #cccccc;                  /* 常规前景 */
+    --fg-dim: #9d9d9d;              /* 次级文本(未选中列表项) */
+    --fg-muted: #8b8b8b;            /* 分组标题 */
+    --fg-bright: #ffffff;           /* 强调文本 / 活动页签 */
+    --fg-hint: #6e6e6e;             /* 占位符 / 提示 */
+
+    /* 交互 */
+    --accent: #0078d4;              /* button.background / 活动页签顶条 */
+    --accent-hover: #026ec1;
+    --focus-border: #0078d4;        /* focusBorder */
+    --list-active: #04395e;         /* list.activeSelectionBackground 近色 */
     --overlay: rgba(0, 0, 0, 0.55);
+    --shadow-dialog: 0 4px 16px rgba(0, 0, 0, 0.5);
+    --shadow-widget: 0 2px 8px rgba(0, 0, 0, 0.36);
+
     /* 状态点 / 网络分级 */
-    --dot-idle: #6e7681;
+    --dot-idle: #8b8b8b;
     --dot-running: #3fb950;
     --dot-dead: #f85149;
     --net-good: #3fb950;
-    --net-fair: #d29922;
-    --net-bad: #f85149;
-    --scrollbar-track: #1e1e1e;
-    --scrollbar-thumb: #4d4d4d;
-    --scrollbar-thumb-hover: #6e6e6e;
+    --net-fair: #cca700;
+    --net-bad: #f14c4c;
+
+    /* 凭据徽标 */
+    --cred-key: #cca700;
+    --cred-agent: #3794ff;
+    --cred-password: #3fb950;
+
+    /* 滚动条 */
+    --scrollbar-track: #1f1f1f;
+    --scrollbar-thumb: #424242;
+    --scrollbar-thumb-hover: #4f4f4f;
+    --scrollbar-thumb-active: #bfbfbf;
+
+    /* 终端面:比编辑器面(#1f1f1f)更深(Windows Terminal Campbell 底色),
+       xterm 底色与之保持一致,避免切换/重绘时闪边 */
+    --term-bg: #0c0c0c;
+
+    /* 尺寸:与 VS Code 对齐 */
+    --bar-height: 35px;             /* 页签栏高度 */
+    --toolbar-height: 26px;         /* 次级工具条 */
+    --row-height: 22px;             /* 列表行高 */
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 6px;
 }
 
 [data-theme='light'] {
     --bg-app: #ffffff;
-    --bg-bar: #f3f3f3;
-    --bg-bar-border: #e0e0e0;
-    --bg-tab: #ececec;
+    --bg-bar: #f8f8f8;
+    --bg-bar-border: #e5e5e5;
+    --bg-tab: #f8f8f8;
     --bg-tab-active: #ffffff;
-    --bg-tab-hover: #e5e5e5;
+    --bg-tab-hover: #e8e8e8;
     --bg-input: #ffffff;
-    --bg-dialog: #f5f5f5;
-    --border-dialog: #d0d0d0;
-    --border-tab: #d4d4d4;
-    --fg: #333333;
-    --fg-dim: #808080;
-    --fg-muted: #9a9a9a;
-    --fg-bright: #111111;
-    --fg-hint: #666666;
-    --accent: #0066cc;
-    --overlay: rgba(0, 0, 0, 0.25);
-    --dot-idle: #979797;
+    --bg-dialog: #ffffff;
+    --border-dialog: #cecece;
+    --border-tab: #e5e5e5;
+    --border-input: #cecece;
+
+    --fg: #3b3b3b;
+    --fg-dim: #616161;
+    --fg-muted: #717171;
+    --fg-bright: #000000;
+    --fg-hint: #9d9d9d;
+
+    --accent: #005fb8;
+    --accent-hover: #0258a8;
+    --focus-border: #005fb8;
+    --list-active: #e4e6f1;
+    --overlay: rgba(0, 0, 0, 0.22);
+    --shadow-dialog: 0 4px 16px rgba(0, 0, 0, 0.18);
+    --shadow-widget: 0 2px 8px rgba(0, 0, 0, 0.12);
+
+    --dot-idle: #8b8b8b;
     --dot-running: #1a7f37;
-    --dot-dead: #cf222e;
+    --dot-dead: #e51400;
     --net-good: #1a7f37;
-    --net-fair: #9a6700;
-    --net-bad: #cf222e;
-    --scrollbar-track: #f0f0f0;
-    --scrollbar-thumb: #c0c0c0;
-    --scrollbar-thumb-hover: #a0a0a0;
+    --net-fair: #bf8803;
+    --net-bad: #e51400;
+
+    --cred-key: #bf8803;
+    --cred-agent: #005fb8;
+    --cred-password: #1a7f37;
+
+    --scrollbar-track: #ffffff;
+    --scrollbar-thumb: #c1c1c1;
+    --scrollbar-thumb-hover: #a8a8a8;
+    --scrollbar-thumb-active: #8b8b8b;
+
+    --term-bg: #ffffff;
 }
 
-/* 页面基础:黑底,锁定滚动,无内边距 */
+/* ── 页面基础:锁定滚动,无内边距 ── */
 html, body {
     background: var(--bg-app);
     height: 100%;
@@ -70,11 +125,139 @@ html, body {
     overflow: hidden;
 }
 
-/* ── 终端滚动条:细滚动条 + 主题色;仅内容溢出时显示(auto) ── */
-.xterm-viewport {
-    background-color: var(--bg-app);
+/* ── 面板滚动条:VS Code 同款细滚动条(轨道透明、滑块半透明) ── */
+.sidebar ::-webkit-scrollbar,
+.host-scroll::-webkit-scrollbar,
+.vsc-dialog ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.sidebar ::-webkit-scrollbar-track,
+.host-scroll::-webkit-scrollbar-track,
+.vsc-dialog ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar ::-webkit-scrollbar-thumb,
+.host-scroll::-webkit-scrollbar-thumb,
+.vsc-dialog ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 5px;
+}
+
+.sidebar ::-webkit-scrollbar-thumb:hover,
+.host-scroll::-webkit-scrollbar-thumb:hover,
+.vsc-dialog ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+    background-clip: content-box;
+}
+
+.sidebar ::-webkit-scrollbar-corner,
+.host-scroll::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+.host-scroll,
+.sidebar {
     scrollbar-width: thin; /* Firefox */
-    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* ── 焦点环:VS Code 的 1px focusBorder(仅键盘聚焦时显现) ── */
+:focus-visible {
+    outline: 1px solid var(--focus-border);
+    outline-offset: -1px;
+}
+
+/* ── 共享控件样式(全局,组件不再重复定义;scoped 同名规则可覆盖) ──
+   高度 / 圆角 / 配色统一取自 VS Code 默认控件规格。 */
+.btn-primary,
+.btn-secondary,
+.btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    padding: 0 14px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.btn-secondary {
+    background: var(--bg-tab-hover);
+    border-color: var(--border-input);
+    color: var(--fg);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--fg) 14%, var(--bg-dialog));
+    color: var(--fg-bright);
+}
+
+.btn-ghost {
+    background: none;
+    border-color: var(--border-input);
+    color: var(--fg-dim);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    background: var(--bg-tab-hover);
+    color: var(--fg-bright);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-ghost:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+input[type='text'],
+input[type='password'],
+input[type='number'],
+select {
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+    color: var(--fg);
+    outline: none;
+}
+
+input[type='text']::placeholder,
+input[type='password']::placeholder,
+input[type='number']::placeholder {
+    color: var(--fg-hint);
+}
+
+input[type='text']:focus,
+input[type='password']:focus,
+input[type='number']:focus,
+select:focus {
+    border-color: var(--focus-border);
+}
+
+/* ── 终端滚动条:xterm 视口沿用同一套颜色 ── */
+.xterm-viewport {
+    background-color: var(--term-bg);
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 /* 覆盖 xterm.css 默认 overflow-y: scroll —— 无滚动内容时不显示滚动条,
@@ -89,13 +272,12 @@ html, body {
 }
 
 .xterm-viewport::-webkit-scrollbar-track {
-    background: var(--scrollbar-track);
+    background: transparent;
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb {
     background: var(--scrollbar-thumb);
     border-radius: 4px;
-    border: 2px solid var(--scrollbar-track);
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb:hover {
@@ -103,5 +285,5 @@ html, body {
 }
 
 .xterm-viewport::-webkit-scrollbar-corner {
-    background: var(--scrollbar-track);
+    background: transparent;
 }

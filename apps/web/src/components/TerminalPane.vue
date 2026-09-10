@@ -206,6 +206,9 @@ defineExpose({ reattach })
 </script>
 
 <style scoped>
+/* 终端内容区内边距:约半个字符宽(字号 14px 的等宽字符宽约 8.4px,
+   取 7px 折中);box-sizing: border-box 下 clientWidth/Height 已扣掉
+   padding,所以 FitAddon 计算的 cols/rows 依然准确,不会溢出 */
 .terminal-pane {
     position: relative;
     flex: 1 1 0%;
@@ -213,7 +216,8 @@ defineExpose({ reattach })
     height: 100%;
     min-width: 0;
     min-height: 0;
-    background: #000000;
+    padding: 7px;
+    background: var(--term-bg);
     overflow: hidden;
 }
 
@@ -234,13 +238,13 @@ defineExpose({ reattach })
 }
 
 .vsc-dialog {
-    min-width: 320px;
-    max-width: 420px;
+    min-width: 340px;
+    max-width: 460px;
     padding: 16px;
     background: var(--bg-dialog); /* VSCode 对话框背景 */
     border: 1px solid var(--border-dialog);
-    border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-dialog);
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -248,7 +252,7 @@ defineExpose({ reattach })
 
 .dialog-title {
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--fg-bright);
 }
 
@@ -264,39 +268,5 @@ defineExpose({ reattach })
     justify-content: flex-end;
     gap: 8px;
     margin-top: 4px;
-}
-
-.btn-primary {
-    height: 26px;
-    padding: 0 14px;
-    background: var(--accent); /* VSCode 主按钮 */
-    border: none;
-    border-radius: 3px;
-    color: var(--fg-bright);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-}
-
-.btn-primary:hover {
-    background: var(--accent);
-    filter: brightness(1.1);
-}
-
-.btn-secondary {
-    height: 26px;
-    padding: 0 14px;
-    background: var(--bg-tab-hover); /* VSCode 次按钮 */
-    border: none;
-    border-radius: 3px;
-    color: var(--fg);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-}
-
-.btn-secondary:hover {
-    background: var(--bg-tab-hover);
-    filter: brightness(1.15);
 }
 </style>

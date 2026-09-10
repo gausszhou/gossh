@@ -665,10 +665,13 @@ html, body, #app {
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue',
-        sans-serif;
+    /* VSCode 榛樿 UI 瀛椾綋鏍?Windows: Segoe UI, macOS: system-ui, Linux: Ubuntu/Sans) */
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont,
+        'Ubuntu', 'Droid Sans', sans-serif;
+    font-size: 13px;
     color: var(--fg);
-}
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 
 * {
     box-sizing: border-box;
@@ -798,7 +801,7 @@ body {
     min-height: 0;
 }
 
-/* ── 空态 ── */
+/* 鈹€鈹€ 绌烘€?VSCode 娆㈣繋瑙嗗浘:鏃犺竟妗?灞呬腑鍥炬爣 + 涓诲壇鏂囨) 鈹€鈹€ */
 .content-empty {
     flex: 1;
     display: flex;
@@ -821,7 +824,7 @@ body {
 .spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid var(--border-tab);
+    border: 1.5px solid var(--border-input);
     border-top-color: var(--accent);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
@@ -838,44 +841,37 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 28px 44px;
-    min-width: 280px;
-    background: var(--bg-dialog);
-    border: 1px dashed var(--border-tab);
-    border-radius: 8px;
+    gap: 10px;
+    padding: 24px 32px;
+    max-width: 380px;
     color: var(--fg);
     font-family: inherit;
-}
+    text-align: center;
 
 .empty-card-icon {
-    font-size: 26px;
-    line-height: 1;
     color: var(--fg-hint);
-}
+    opacity: 0.55;
 
 .empty-card-title {
-    font-size: 15px;
+    font-size: 16px;
+    font-weight: 300;
     line-height: 1.4;
     color: var(--fg-bright);
-}
 
 .empty-card-hint {
-    font-size: 12px;
-    line-height: 1.4;
-    color: var(--fg-muted);
-}
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--fg-hint);
 
 .empty-error {
-    max-width: 320px;
+    max-width: 420px;
     padding: 10px 16px;
-    color: #f48771;
+    color: var(--net-bad);
     font-size: 13px;
     text-align: center;
     line-height: 1.6;
-}
 
-/* ── 轻提示 ── */
+/* 鈹€鈹€ 杞绘彁绀?VSCode notification toaster 瑙傛劅) 鈹€鈹€ */
 .toast {
     position: fixed;
     right: 16px;
@@ -885,84 +881,80 @@ body {
     padding: 10px 14px;
     background: var(--bg-dialog);
     border: 1px solid var(--border-dialog);
-    border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-widget);
     color: var(--fg);
     font-size: 13px;
     line-height: 1.5;
     word-break: break-word;
-}
 
 /* ── 访问令牌门禁 ── */
 .token-gate {
     position: fixed;
     inset: 0;
     z-index: 1000;
-    display: flex;
+    background: var(--overlay);
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.55);
 }
 
 .token-gate-card {
-    width: 420px;
+    width: 440px;
     max-width: calc(100vw - 40px);
-    background: var(--bg-panel, #161b22);
-    border: 1px solid var(--border-tab, #30363d);
-    border-radius: 8px;
-    padding: 24px;
+    background: var(--bg-dialog);
+    border: 1px solid var(--border-dialog);
+    border-radius: var(--radius-lg);
+    padding: 22px;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-}
+    box-shadow: var(--shadow-dialog);
 
 .token-gate-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--fg-bright, #e6edf3);
-}
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--fg-bright);
 
 .token-gate-hint {
     font-size: 12px;
     line-height: 1.6;
-    color: var(--fg-muted, #8b949e);
-}
+    color: var(--fg-muted);
 
 .token-gate-input {
     width: 100%;
     box-sizing: border-box;
-    padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--border-tab, #30363d);
-    background: var(--bg-input, #0d1117);
-    color: var(--fg-bright, #e6edf3);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-input);
+    background: var(--bg-input);
+    color: var(--fg);
+    font-family: 'SF Mono', Consolas, 'DejaVu Sans Mono', monospace;
     font-size: 13px;
+    outline: none;
 }
 
 .token-gate-input:focus {
-    outline: none;
-    border-color: var(--accent, #58a6ff);
-}
+    border-color: var(--focus-border);
 
 .token-gate-error {
     font-size: 12px;
     color: var(--err, #f85149);
 }
-
 .token-gate-btn {
     align-self: flex-end;
-    padding: 6px 18px;
-    border-radius: 6px;
+    height: 26px;
+    padding: 0 16px;
+    border-radius: var(--radius-sm);
     border: none;
-    background: var(--accent, #2f81f7);
-    color: #fff;
+    background: var(--accent);
+    color: #ffffff;
     font-size: 13px;
+    font-family: inherit;
     cursor: pointer;
 }
 
 .token-gate-btn:hover {
-    filter: brightness(1.1);
-}
+    background: var(--accent-hover);
 </style>

@@ -37,24 +37,25 @@ let fitAddon: FitAddon
 let resizeHandler: () => void
 let unsubscribeTheme: (() => void) | null = null
 
-// 终端内部配色跟随亮/暗主题(与页面 CSS 变量一致)
+// 终端内部配色跟随亮/暗主题(与页面 CSS 变量一致)。暗色终端面取
+// #0c0c0c(Windows Terminal Campbell 底色),比编辑器面 #1f1f1f 更深。
 function terminalTheme(theme: Theme): Record<string, string> {
     if (theme === 'light') {
         return {
             background: '#ffffff',
-            foreground: '#1a1a1a',
-            cursor: '#1a1a1a',
+            foreground: '#3b3b3b',
+            cursor: '#005fb8',
             cursorAccent: '#ffffff',
-            selectionBackground: '#cfe3f7',
-            selectionForeground: '#1a1a1a',
+            selectionBackground: '#add6ff',
+            selectionForeground: '#000000',
         }
     }
     return {
-        background: '#000000',
+        background: '#0c0c0c',
         foreground: '#cccccc',
         cursor: '#cccccc',
-        cursorAccent: '#000000',
-        selectionBackground: '#333333',
+        cursorAccent: '#0c0c0c',
+        selectionBackground: '#264f78',
     }
 }
 
@@ -213,7 +214,7 @@ defineExpose({
 .terminal-container {
     width: 100%;
     height: 100%;
-    background: black;
+    background: var(--term-bg);
     padding: 0;
     margin: 0;
     overflow: hidden;
