@@ -1,11 +1,11 @@
 <template>
   <div class="host-list">
-    <!-- 侧栏头部:分组标题 + 宽样式「新建主机」按钮
+    <!-- 侧栏头部:分组标题 + 新建主机(+/图标按钮)
          (展开/收起按钮在页签栏最左侧,见 TabBar) -->
     <div class="host-header">
       <span class="host-header-title">{{ t('host.title') }}</span>
       <button class="new-host-btn" :title="t('tab.newHost')" @click="emit('new-host')">
-        <Plus :size="14" /><span class="new-host-label">{{ t('tab.newHost') }}</span>
+        <Plus :size="15" />
       </button>
     </div>
 
@@ -214,19 +214,21 @@ onBeforeUnmount(() => {
     background: var(--bg-bar);
 }
 
-/* ── 侧栏头部(分组标题 + 宽样式「新建主机」按钮) ── */
+/* ── 侧栏头部(分组标题 + 新建主机图标按钮) ── */
 .host-header {
     flex: 0 0 auto;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
     gap: 6px;
-    padding: 8px 8px 6px;
+    height: var(--bar-height);
+    padding: 0 6px 0 10px;
     user-select: none;
 }
 
 .host-header-title {
+    flex: 1 1 auto;
     min-width: 0;
-    padding-left: 2px;
     font-size: 11px;
     font-weight: 400;
     letter-spacing: 0.04em;
@@ -237,37 +239,24 @@ onBeforeUnmount(() => {
     text-overflow: ellipsis;
 }
 
-/* 宽样式:横向铺满侧栏(上限 320px,VSCode 欢迎页按钮观感) */
+/* 新建主机:图标按钮(VSCode 视图标题右侧的 + 号) */
 .new-host-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    width: 100%;
-    max-width: 320px;
-    height: 28px;
-    margin: 0 auto;
-    padding: 0 10px;
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    padding: 0;
     background: none;
-    border: 1px solid var(--border-input);
+    border: none;
     border-radius: var(--radius-md);
-    color: var(--fg);
-    font-size: 13px;
-    font-family: inherit;
-    line-height: 1;
+    color: var(--fg-dim);
     cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.new-host-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .new-host-btn:hover {
     background: var(--bg-tab-hover);
-    border-color: var(--focus-border);
     color: var(--fg-bright);
 }
 
