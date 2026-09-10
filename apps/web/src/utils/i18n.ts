@@ -78,7 +78,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'cred.busy': '正在连接…',
         // ── 页签内容 ──
         'empty.title': '打开一个主机会话',
-        // 提示文案在图标处拆成前后两段:中间由模板插入与行内按钮同源的图标组件
+        // 提示拆成前后两段,中间由模板插入「图标 + 连接」的行内迷你按钮
         'empty.hintPre': '把鼠标移到左侧主机上,点',
         'empty.hintPost': '打开会话',
         'empty.loading': '正在连接…',
@@ -227,8 +227,8 @@ const messages: Record<Lang, Record<string, string>> = {
         'cred.busy': 'Connecting…',
         // ── Tab content ──
         'empty.title': 'Open a host session',
-        // Hint is split around the icon: the template inserts the same icon
-        // component the row action button uses (no font glyph).
+        // Hint is split around an inline mini button (icon + "Connect") that the
+        // template renders, so the demo icon always matches the real button.
         'empty.hintPre': 'Hover a host on the left and click',
         'empty.hintPost': 'to open a session',
         'empty.loading': 'Connecting…',

@@ -87,9 +87,10 @@
           <div v-else class="empty-card">
             <Terminal :size="42" class="empty-card-icon" />
             <span class="empty-card-title">{{ t('empty.title') }}</span>
-            <!-- 提示里的 ▶ 用行内按钮同一个图标组件,而不是字体字形(跨平台字形不一致) -->
+            <!-- 提示里内联一个"迷你按钮":图标用与行内按钮同源的 lucide 组件
+                 (字体字形 ▶ 跨平台形态/基线不一致),文字用按钮名,便于对照识别 -->
             <span class="empty-card-hint">
-              {{ t('empty.hintPre') }}<Play :size="12" class="empty-hint-icon" aria-hidden="true" />{{ t('empty.hintPost') }}
+              {{ t('empty.hintPre') }}<span class="empty-hint-btn"><Play :size="12" aria-hidden="true" />{{ t('host.act.connect') }}</span>{{ t('empty.hintPost') }}
             </span>
           </div>
         </div>
@@ -844,10 +845,18 @@ body {
     color: var(--fg-hint);
 }
 
-/* 行内图标:与文本基线对齐,颜色跟随提示文字 */
-.empty-hint-icon {
-    flex: 0 0 auto;
+/* 行内"迷你按钮":与主机行内的连接按钮同款(绿色图标 + 名称) */
+.empty-hint-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 1px 6px;
+    border: 1px solid color-mix(in srgb, var(--net-good) 45%, transparent);
+    border-radius: var(--radius-md);
     color: var(--net-good);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: nowrap;
 }
 
 .empty-error {
