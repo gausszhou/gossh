@@ -45,23 +45,6 @@
       ></span>
     </aside>
 
-    <!-- 中间:SFTP 文件列表(绑定当前活动 SSH 会话,自动开启;SFTP_ENABLED 编译期门控) -->
-    <aside v-if="SFTP_ENABLED && activeSshTab" class="sftp-panel" :class="{ collapsed: sftpPanelCollapsed }">
-      <div class="sftp-panel-header">
-        <span class="sftp-panel-title">📁 {{ activeSshTab.hostLabel || activeSshTab.title }}</span>
-        <span class="sftp-panel-actions">
-          <button
-            class="sftp-panel-toggle"
-            :title="sftpPanelCollapsed ? t('sftp.expand') : t('sftp.collapse')"
-            @click="sftpPanelCollapsed = !sftpPanelCollapsed"
-          ><ChevronsRight v-if="sftpPanelCollapsed" :size="14" /><ChevronsLeft v-else :size="14" /></button>
-        </span>
-      </div>
-      <div v-if="!sftpPanelCollapsed" class="sftp-panel-body">
-        <SFTPView :session-id="activeSshTab.sessionId!" :host-name="activeSshTab.hostLabel || activeSshTab.hostName || ''" :active="true" :key="activeSshTab.sessionId" />
-      </div>
-    </aside>
-
     <!-- 右侧:页签区 + 工具体栏 -->
     <div class="main">
       <TabBar
@@ -91,7 +74,6 @@
             @conn="onConn(tab, $event)"
             @tab-title="(ti) => onTabTitle(tab, ti)"
             @credential-required="(msg) => onPaneCredentialRequired(tab, msg)"
-            @forwards="openForwardModal(tab)"
           />
         </template>
 
@@ -103,7 +85,7 @@
             <span class="empty-loading-text">{{ t('empty.loading') }}</span>
           </div>
           <div v-else class="empty-card">
-            <span class="empty-card-icon">⌨</span>
+            <Terminal :size="42" class="empty-card-icon" />
             <span class="empty-card-title">{{ t('empty.title') }}</span>
             <span class="empty-card-hint">{{ t('empty.hint') }}</span>
           </div>
@@ -132,11 +114,6 @@
       @submit="onCredSubmit"
       @close="credOpen = false"
     />
-    <ForwardModal
-      :open="forwardOpen"
-      :session-id="forwardSessionId"
-      @close="forwardOpen = false"
-    />
     <SettingsModal
       :open="settingsOpen"
       :theme="theme"
@@ -156,22 +133,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref } from 'vue'
-import { ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { Terminal } from 'lucide-vue-next'
 import TabBar from './components/TabBar.vue'
 import HostList from './components/HostList.vue'
 import HostFormModal from './components/HostFormModal.vue'
 import CredentialsModal from './components/CredentialsModal.vue'
-import ForwardModal from './components/ForwardModal.vue'
 import HostForwardsModal from './components/HostForwardsModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import SshView from './components/SshView.vue'
-// SFTP 面板按编译期开关懒加载(与后端 -tags sftp 同源,见 utils/features.ts
-// 与 Makefile SFTP):禁用时组件为 null,模板侧已加 SFTP_ENABLED 门控
-import { SFTP_ENABLED } from './utils/features'
-const SFTPView = SFTP_ENABLED
-    ? defineAsyncComponent(() => import('./components/SFTPView.vue'))
-    : null
 import {
     listHosts, createSession, checkSessions, destroySession, updateSessionTitle,
     isCredentialError, getPageTitle, getToken, APIError,
@@ -179,7 +149,7 @@ import {
 import { applyTheme, currentTheme, notifyThemeChange, type Theme } from './utils/theme'
 import { t } from './utils/i18n'
 import {
-    loadManifest, upsertManifest, removeFromManifest, generateSessionID, type ManifestEntry,
+    loadManifest, upsertManifest, removeFromManifest, generateSessionID,
 } from './utils/manifest'
 import { logger } from './utils/logger'
 import { loadTabOrder, saveTabOrder } from './utils/tabOrder'
@@ -206,7 +176,6 @@ const sidebarCollapsed = computed({
     get: () => sideCollapsed.value,
     set: (v: boolean) => (sideCollapsed.value = v),
 })
-
 
 // ── 侧栏宽度(可拖拽调整,localStorage 持久化) ──
 const SIDEBAR_KEY = 'gossh.sidebarWidth'
@@ -374,30 +343,6 @@ async function connectHost(host: Host) {
     }
 }
 
-// ── SFTP 流程:绑定存活会话(无则静默创建) ──
-async function findAliveSessionForHost(hostId: string): Promise<string | null> {
-    // 已打开的 SSH 页签(存活)
-    for (const tab of tabs.value) {
-        if (tab.kind === 'ssh' && tab.hostId === hostId && tab.alive !== false && tab.sessionId) {
-            return tab.sessionId
-        }
-    }
-    // 本机清单 + status 轮询
-    const mine = loadManifest()
-        .filter((e) => e.hostId === hostId)
-        .map((e) => e.id)
-    if (mine.length > 0) {
-        try {
-            const alive = await checkSessions(mine)
-            if (alive.length > 0) return alive[0].id
-        } catch {
-            // 服务端不可用,按无存活处理
-        }
-    }
-    return null
-}
-
-
 // ── 凭据弹窗 ──
 interface PendingConnectCred {
     mode: 'connect'
@@ -499,7 +444,7 @@ function onCredSubmit(payload: CredentialPayload) {
 // ── 页签关闭 / 销毁 ──
 function closeTab(tab: AppTab) {
     if (tab.kind === 'ssh' && tab.sessionId) {
-        // 页签关闭 = 销毁会话(后端语义);SFTP 页签绑定同一会话,一并关闭
+        // 页签关闭 = 销毁会话(后端语义)
         logger.info('app', 'close ssh tab -> destroy session=%s', tab.sessionId)
         void destroySession(tab.sessionId)
         removeFromManifest(tab.sessionId)
@@ -581,16 +526,6 @@ function onTabTitle(tab: AppTab, title: string) {
     void updateSessionTitle(tab.sessionId, title)
 }
 
-// ── 端口转发 ──
-const forwardOpen = ref(false)
-const forwardSessionId = ref('')
-
-function openForwardModal(tab: AppTab) {
-    if (!tab.sessionId) return
-    forwardSessionId.value = tab.sessionId
-    forwardOpen.value = true
-}
-
 // ── 主机表单 ──
 const hostFormOpen = ref(false)
 const hostFormHost = ref<Host | null>(null)
@@ -632,15 +567,6 @@ async function onHostForwardsSaved() {
     hostForwardsHost.value = null
     await refreshHosts()
 }
-
-// ── SFTP 中栏(绑定活动 SSH 会话,三栏布局) ──
-const sftpPanelCollapsed = ref(false)
-
-// 活动 SSH 页签:中栏 SFTP 的数据源(host 工作区)
-const activeSshTab = computed(() => {
-    const tab = tabs.value.find((t) => t.id === activeTabId.value)
-    return tab && tab.kind === 'ssh' ? tab : undefined
-})
 
 // ── 访问令牌门禁 ──
 // 无 ?token=(或令牌失效 401)时弹出输入框;保存后重载页面。
@@ -743,13 +669,14 @@ html, body, #app {
 }
 
 body {
-    /* VSCode 榛樿 UI 瀛椾綋鏍?Windows: Segoe UI, macOS: system-ui, Linux: Ubuntu/Sans) */
+    /* VSCode 默认 UI 字体栈(Windows: Segoe UI, macOS: system-ui, Linux: Ubuntu/Sans) */
     font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont,
         'Ubuntu', 'Droid Sans', sans-serif;
     font-size: 13px;
     color: var(--fg);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
 
 * {
     box-sizing: border-box;
@@ -825,66 +752,6 @@ body {
     background: var(--accent);
 }
 
-/* ── 中间 SFTP 栏(与侧栏同风格,固定宽度,内部滚动) ── */
-.sftp-panel {
-    flex: 0 0 auto;
-    width: 340px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-bar);
-    border-right: 1px solid var(--bg-bar-border);
-    min-width: 0;
-}
-
-.sftp-panel.collapsed {
-    width: 40px;
-}
-
-.sftp-panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 32px;
-    padding: 0 8px;
-    border-bottom: 1px solid var(--bg-bar-border);
-    font-size: 12px;
-    color: var(--fg-muted);
-    flex: 0 0 auto;
-}
-
-.sftp-panel-title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.sftp-panel-toggle {
-    background: none;
-    border: none;
-    color: var(--fg-dim);
-    cursor: pointer;
-    font-size: 12px;
-    padding: 2px 6px;
-    border-radius: 3px;
-}
-
-.sftp-panel-toggle:hover {
-    background: var(--bg-tab-hover);
-    color: var(--fg-bright);
-}
-
-.sftp-panel-body {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-}
-
-.sftp-panel-body > * {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
 .main {
     flex: 1 1 auto;
     min-width: 0;
@@ -905,7 +772,7 @@ body {
     min-height: 0;
 }
 
-/* 鈹€鈹€ 绌烘€?VSCode 娆㈣繋瑙嗗浘:鏃犺竟妗?灞呬腑鍥炬爣 + 涓诲壇鏂囨) 鈹€鈹€ */
+/* ── 空态(VSCode 欢迎视图:无边框,居中图标 + 主副文案) ── */
 .content-empty {
     flex: 1;
     display: flex;
@@ -951,21 +818,25 @@ body {
     color: var(--fg);
     font-family: inherit;
     text-align: center;
+}
 
 .empty-card-icon {
     color: var(--fg-hint);
     opacity: 0.55;
+}
 
 .empty-card-title {
     font-size: 16px;
     font-weight: 300;
     line-height: 1.4;
     color: var(--fg-bright);
+}
 
 .empty-card-hint {
     font-size: 13px;
     line-height: 1.5;
     color: var(--fg-hint);
+}
 
 .empty-error {
     max-width: 420px;
@@ -974,8 +845,9 @@ body {
     font-size: 13px;
     text-align: center;
     line-height: 1.6;
+}
 
-/* 鈹€鈹€ 杞绘彁绀?VSCode notification toaster 瑙傛劅) 鈹€鈹€ */
+/* ── 轻提示(VSCode notification toaster 观感) ── */
 .toast {
     position: fixed;
     right: 16px;
@@ -991,16 +863,17 @@ body {
     font-size: 13px;
     line-height: 1.5;
     word-break: break-word;
+}
 
 /* ── 访问令牌门禁 ── */
 .token-gate {
     position: fixed;
     inset: 0;
     z-index: 1000;
-    background: var(--overlay);
+    display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
+    background: var(--overlay);
 }
 
 .token-gate-card {
@@ -1014,16 +887,19 @@ body {
     flex-direction: column;
     gap: 12px;
     box-shadow: var(--shadow-dialog);
+}
 
 .token-gate-title {
     font-size: 15px;
     font-weight: 500;
     color: var(--fg-bright);
+}
 
 .token-gate-hint {
     font-size: 12px;
     line-height: 1.6;
     color: var(--fg-muted);
+}
 
 .token-gate-input {
     width: 100%;
@@ -1041,11 +917,13 @@ body {
 
 .token-gate-input:focus {
     border-color: var(--focus-border);
+}
 
 .token-gate-error {
     font-size: 12px;
-    color: var(--err, #f85149);
+    color: var(--net-bad);
 }
+
 .token-gate-btn {
     align-self: flex-end;
     height: 26px;
@@ -1061,4 +939,5 @@ body {
 
 .token-gate-btn:hover {
     background: var(--accent-hover);
+}
 </style>

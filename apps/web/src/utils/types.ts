@@ -58,17 +58,6 @@ export interface KnownHost {
     first_seen: number
 }
 
-// SFTP 目录项。
-export interface SftpEntry {
-    name: string
-    path: string
-    size: number
-    mode: string
-    is_dir: boolean
-    is_link: boolean
-    mod_time: number // unix 秒
-}
-
 // 会话级端口转发条目。
 export interface ForwardEntry {
     id: string
@@ -79,21 +68,21 @@ export interface ForwardEntry {
 
 // ── 前端页签模型 ──
 
-export type TabKind = 'ssh' | 'sftp'
+export type TabKind = 'ssh'
 
 export interface AppTab {
-    id: string // 页签唯一 id:ssh → 会话 id;其它 → 前缀 + 序号
+    id: string // 页签唯一 id:ssh → 会话 id
     kind: TabKind
     title: string
-    // ssh/sftp 会话绑定
+    // 会话绑定
     sessionId?: string
     hostId?: string
     hostName?: string
     hostLabel?: string // "user@addr:port" 展示用
-    // ssh 专属:存活状态(status 轮询)与 WS 附着状态
+    // 存活状态(status 轮询)与 WS 附着状态
     alive?: boolean
     connected?: boolean
-    latency?: number // ssh 专属:最近一次 ping 往返(ms)
+    latency?: number // 最近一次 ping 往返(ms)
     command?: string
     createdAt: number
 }

@@ -1,7 +1,6 @@
 // 会话清单(manifest):设备本地的 SSH 会话列表,localStorage 持久化。
 // 服务端不保存列表,只按会话 id 保留记录;本模块是"这台设备上有
-// 哪些会话"的唯一事实来源。只有 SSH 会话页签持久化(SFTP/运行页签
-// 不持久化),刷新页面后从清单恢复存活会话页签(status 轮询)。
+// 哪些会话"的唯一事实来源。刷新页面后从清单恢复存活会话页签(status 轮询)。
 import { logger } from './logger'
 
 export const MANIFEST_KEY = 'gossh.sessions'

@@ -38,7 +38,7 @@
           <div class="settings-section">
             <div class="settings-label">
               {{ t('settings.knownHosts') }}
-              <button class="kh-refresh" :title="t('sftp.refresh')" @click="loadKnownHosts">⟳</button>
+              <button class="kh-refresh" :title="t('common.refresh')" @click="loadKnownHosts">⟳</button>
             </div>
             <div v-if="knownHostsLoading" class="kh-empty">{{ t('common.loading') }}</div>
             <div v-else-if="knownHosts.length === 0" class="kh-empty">{{ t('settings.knownHostsEmpty') }}</div>
@@ -240,12 +240,12 @@ async function saveTitle() {
 
 /* ── 对话框(仿 VSCode 风格,与断开弹窗一致) ── */
 .settings-dialog {
-    width: 380px;
+    width: 400px;
     max-width: calc(100vw - 32px);
     background: var(--bg-dialog);
     border: 1px solid var(--border-dialog);
-    border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-dialog);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -312,16 +312,17 @@ async function saveTitle() {
 
 .option-btn {
     flex: 1 1 0;
-    padding: 6px 0;
-    background: var(--bg-tab);
-    border: 1px solid var(--border-tab);
-    border-radius: 4px;
+    height: 26px;
+    padding: 0 8px;
+    background: none;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
     color: var(--fg-dim);
     font-size: 13px;
     font-family: inherit;
+    line-height: 1;
     cursor: pointer;
-    line-height: 1.4;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 
 .option-btn:hover {
@@ -330,7 +331,7 @@ async function saveTitle() {
 }
 
 .option-btn.active {
-    background: var(--bg-tab-active);
+    background: var(--list-active);
     border-color: var(--accent);
     color: var(--fg-bright);
 }
@@ -348,14 +349,14 @@ async function saveTitle() {
 .token-input {
     flex: 1 1 auto;
     min-width: 0;
-    height: 28px;
+    height: 26px;
     padding: 0 8px;
     background: var(--bg-input);
-    border: 1px solid var(--border-tab);
-    border-radius: 4px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
     color: var(--fg);
     font-size: 12px;
-    font-family: 'SF Mono', Consolas, monospace;
+    font-family: 'SF Mono', Consolas, 'DejaVu Sans Mono', monospace;
     outline: none;
 }
 
@@ -400,9 +401,9 @@ async function saveTitle() {
     align-items: center;
     gap: 8px;
     padding: 5px 8px;
-    background: var(--bg-tab);
-    border: 1px solid var(--border-tab);
-    border-radius: 4px;
+    background: none;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
 }
 
 .kh-main {
@@ -463,15 +464,16 @@ async function saveTitle() {
 .title-input {
     flex: 1 1 auto;
     min-width: 0;
-    height: 30px;
+    height: 26px;
     padding: 0 8px;
     background: var(--bg-input);
-    border: 1px solid var(--border-tab);
-    border-radius: 4px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
     color: var(--fg);
     font-size: 13px;
     font-family: inherit;
     line-height: 1.4;
+    outline: none;
 }
 
 .title-input::placeholder {
@@ -479,13 +481,12 @@ async function saveTitle() {
 }
 
 .title-input:focus {
-    outline: none;
-    border-color: var(--accent);
+    border-color: var(--focus-border);
 }
 
 .option-btn-save {
     flex: 0 0 auto;
-    height: 30px;
+    height: 26px;
     padding: 0 14px;
 }
 

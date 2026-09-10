@@ -6,7 +6,7 @@
 // 服务端只按 id 提供:创建(幂等/复活)、详情、状态批量查询、销毁。
 import { logger } from './logger'
 import type {
-    Host, KnownHost, SftpEntry, StateDescription, ForwardEntry,
+    Host, KnownHost, StateDescription, ForwardEntry,
 } from './types'
 
 const TOKEN_KEY = 'gossh.token'
@@ -244,58 +244,6 @@ export async function deleteSecret(input: Omit<SecretInput, 'secret'>): Promise<
         if (input.key_path) q.set('key_path', input.key_path)
     }
     await fetchRaw(`/api/secrets?${q.toString()}`, { method: 'DELETE' })
-}
-
-// ── SFTP(绑定会话) ──
-
-export async function sftpList(sessionId: string, path: string): Promise<SftpEntry[]> {
-    const q = new URLSearchParams({ path: path || '.' })
-    return fetchJSON<SftpEntry[]>(`/api/sessions/${encodeURIComponent(sessionId)}/sftp/ls?${q.toString()}`)
-}
-
-export async function sftpStat(sessionId: string, path: string): Promise<SftpEntry> {
-    const q = new URLSearchParams({ path })
-    return fetchJSON<SftpEntry>(`/api/sessions/${encodeURIComponent(sessionId)}/sftp/stat?${q.toString()}`)
-}
-
-export async function sftpMkdir(sessionId: string, path: string): Promise<void> {
-    await fetchJSON(`/api/sessions/${encodeURIComponent(sessionId)}/sftp/mkdir`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path }),
-    })
-}
-
-export async function sftpRename(sessionId: string, from: string, to: string): Promise<void> {
-    await fetchJSON(`/api/sessions/${encodeURIComponent(sessionId)}/sftp/rename`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to }),
-    })
-}
-
-export async function sftpRemove(sessionId: string, path: string): Promise<void> {
-    await fetchJSON(`/api/sessions/${encodeURIComponent(sessionId)}/sftp/remove`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path }),
-    })
-}
-
-// sftpDownload 以 Blob 拉取远程文件(由调用方触发浏览器保存)。
-export async function sftpDownload(sessionId: string, path: string): Promise<Blob> {
-    const q = new URLSearchParams({ path })
-    const res = await fetchRaw(`/api/sessions/${encodeURIComponent(sessionId)}/sftp/download?${q.toString()}`)
-    return res.blob()
-}
-
-// sftpUpload 将文件内容写入远程路径(原始 body 上传)。
-export async function sftpUpload(sessionId: string, path: string, body: Blob): Promise<{ written: number }> {
-    const q = new URLSearchParams({ path })
-    return fetchJSON<{ written: number }>(`/api/sessions/${encodeURIComponent(sessionId)}/sftp/upload?${q.toString()}`, {
-        method: 'POST',
-        body,
-    })
 }
 
 // ── 端口转发(绑定会话) ──

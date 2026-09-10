@@ -174,12 +174,12 @@ function close() {
 }
 
 .hf-dialog {
-    width: 480px;
+    width: 500px;
     max-width: calc(100vw - 32px);
     background: var(--bg-dialog);
     border: 1px solid var(--border-dialog);
-    border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-dialog);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -191,7 +191,7 @@ function close() {
     align-items: center;
     justify-content: space-between;
     padding: 12px 14px;
-    border-bottom: 1px solid var(--border-tab);
+    border-bottom: 1px solid var(--bg-bar-border);
 }
 
 .hf-title {
@@ -202,13 +202,18 @@ function close() {
 }
 
 .hf-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
     background: none;
     border: none;
     color: var(--fg-dim);
     font-size: 13px;
     line-height: 1;
-    padding: 3px 6px;
-    border-radius: 3px;
+    padding: 0;
+    border-radius: var(--radius-md);
     cursor: pointer;
 }
 
@@ -254,11 +259,11 @@ function close() {
 }
 
 .hf-input {
-    height: 28px;
+    height: 26px;
     padding: 0 8px;
     background: var(--bg-input);
-    border: 1px solid var(--border-tab);
-    border-radius: 4px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
     color: var(--fg);
     font-size: 12px;
     font-family: inherit;
@@ -272,7 +277,7 @@ function close() {
 }
 
 .hf-input:focus {
-    border-color: var(--accent);
+    border-color: var(--focus-border);
 }
 
 .hf-input:disabled {
@@ -282,49 +287,6 @@ function close() {
 .hf-add-row {
     display: flex;
     justify-content: flex-end;
-}
-
-.btn-primary {
-    height: 26px;
-    padding: 0 14px;
-    background: var(--accent);
-    border: none;
-    border-radius: 3px;
-    color: var(--fg-bright);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-}
-
-.btn-primary:hover {
-    filter: brightness(1.1);
-}
-
-.btn-primary:disabled {
-    opacity: 0.6;
-    cursor: default;
-}
-
-.btn-ghost {
-    height: 26px;
-    padding: 0 14px;
-    background: none;
-    border: 1px solid var(--border-tab);
-    border-radius: 3px;
-    color: var(--fg-dim);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-}
-
-.btn-ghost:hover {
-    background: var(--bg-tab-hover);
-    color: var(--fg-bright);
-}
-
-.btn-ghost:disabled {
-    opacity: 0.6;
-    cursor: default;
 }
 
 .hf-error {
@@ -338,7 +300,7 @@ function close() {
     font-size: 12px;
     color: var(--fg-muted);
     padding-top: 4px;
-    border-top: 1px solid var(--border-tab);
+    border-top: 1px solid var(--bg-bar-border);
     display: flex;
     align-items: baseline;
     gap: 8px;
@@ -370,9 +332,9 @@ function close() {
     align-items: center;
     gap: 8px;
     padding: 6px 8px;
-    background: var(--bg-tab);
-    border: 1px solid var(--border-tab);
-    border-radius: 4px;
+    background: none;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
 }
 
 .hf-item-kind {
@@ -380,28 +342,28 @@ function close() {
     font-size: 10px;
     line-height: 1;
     padding: 2px 5px;
-    border-radius: 3px;
-    border: 1px solid var(--border-tab);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-input);
     color: var(--fg-muted);
     text-transform: uppercase;
 }
 
 .kind-local {
-    color: #3fb950;
+    color: var(--net-good);
 }
 
 .kind-remote {
-    color: #d29922;
+    color: var(--net-fair);
 }
 
 .kind-dynamic {
-    color: #58a6ff;
+    color: var(--cred-agent);
 }
 
 .hf-item-spec {
     flex: 1 1 auto;
     min-width: 0;
-    font-family: 'SF Mono', Consolas, monospace;
+    font-family: 'SF Mono', Consolas, 'DejaVu Sans Mono', monospace;
     font-size: 12px;
     color: var(--fg);
     overflow: hidden;
@@ -417,7 +379,7 @@ function close() {
     font-size: 11px;
     cursor: pointer;
     padding: 2px 5px;
-    border-radius: 3px;
+    border-radius: var(--radius-md);
 }
 
 .hf-item-del:hover {
@@ -430,7 +392,7 @@ function close() {
     justify-content: flex-end;
     gap: 8px;
     padding: 10px 14px;
-    border-top: 1px solid var(--border-tab);
+    border-top: 1px solid var(--bg-bar-border);
     flex: 0 0 auto;
 }
 </style>

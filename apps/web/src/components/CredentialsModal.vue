@@ -124,12 +124,12 @@ function close() {
 }
 
 .cred-dialog {
-    width: 340px;
+    width: 360px;
     max-width: calc(100vw - 32px);
     background: var(--bg-dialog);
     border: 1px solid var(--border-dialog);
-    border-radius: 6px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-dialog);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -140,7 +140,7 @@ function close() {
     align-items: center;
     justify-content: space-between;
     padding: 12px 14px;
-    border-bottom: 1px solid var(--border-tab);
+    border-bottom: 1px solid var(--bg-bar-border);
 }
 
 .cred-title {
@@ -151,13 +151,18 @@ function close() {
 }
 
 .cred-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
     background: none;
     border: none;
     color: var(--fg-dim);
     font-size: 13px;
     line-height: 1;
-    padding: 3px 6px;
-    border-radius: 3px;
+    padding: 0;
+    border-radius: var(--radius-md);
     cursor: pointer;
 }
 
@@ -192,11 +197,11 @@ function close() {
 }
 
 .cred-input {
-    height: 30px;
+    height: 26px;
     padding: 0 8px;
     background: var(--bg-input);
-    border: 1px solid var(--border-tab);
-    border-radius: 4px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
     color: var(--fg);
     font-size: 13px;
     font-family: inherit;
@@ -208,7 +213,7 @@ function close() {
 }
 
 .cred-input:focus {
-    border-color: var(--accent);
+    border-color: var(--focus-border);
 }
 
 .cred-save-row {
@@ -238,43 +243,6 @@ function close() {
     justify-content: flex-end;
     gap: 8px;
     padding: 12px 14px;
-    border-top: 1px solid var(--border-tab);
-}
-
-.btn-primary {
-    height: 28px;
-    padding: 0 14px;
-    background: var(--accent);
-    border: none;
-    border-radius: 3px;
-    color: var(--fg-bright);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-}
-
-.btn-primary:hover {
-    filter: brightness(1.1);
-}
-
-.btn-primary:disabled {
-    opacity: 0.6;
-    cursor: default;
-}
-
-.btn-secondary {
-    height: 28px;
-    padding: 0 14px;
-    background: var(--bg-tab-hover);
-    border: none;
-    border-radius: 3px;
-    color: var(--fg);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-}
-
-.btn-secondary:hover {
-    filter: brightness(1.15);
+    border-top: 1px solid var(--bg-bar-border);
 }
 </style>
