@@ -12,6 +12,7 @@ apps/*/.vitepress/dist
 apps/*/.vitepress/cache
 
 .tmp/
+.workbuddy/
 
 # npm ecosystem lock files
 package-lock.json
