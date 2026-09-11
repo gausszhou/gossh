@@ -344,15 +344,18 @@ func TestHostsCRUD(t *testing.T) {
 		t.Fatalf("unexpected create result: %d %+v", resp.StatusCode, created)
 	}
 
-	// list
+	// list:内置本地服务器常驻首位,其后才是清单记录
 	resp = doReq(t, ts, http.MethodGet, "/api/hosts", "")
 	var list []*host.Host
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatalf("decode: %s", err)
 	}
 	resp.Body.Close()
-	if len(list) != 2 { // h1 (from newTestServer) + web
-		t.Fatalf("expected 2 hosts, got %d", len(list))
+	if len(list) != 3 { // local(内置) + h1(from newTestServer) + web
+		t.Fatalf("expected 3 hosts, got %d", len(list))
+	}
+	if !list[0].Builtin || !host.IsLocal(list[0].ID) {
+		t.Fatalf("expected the built-in local server first, got %+v", list[0])
 	}
 
 	// update

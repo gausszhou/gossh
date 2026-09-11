@@ -37,6 +37,12 @@ const messages: Record<Lang, Record<string, string>> = {
         'host.collapse': '折叠主机列表',
         'host.expand': '展开主机列表',
         'host.resize': '拖拽调整宽度(双击恢复默认)',
+        // 内置的本地服务器:在运行 gossh 的这台机器上直接开终端(不走 SSH),
+        // 因此只有「连接」——没有凭据可编辑、没有 SSH 连接可转发、也不是
+        // 清单记录可删除。
+        'host.local': '本地服务器',
+        'host.localBadge': '本机',
+        'host.localTip': '在本机打开终端(不经过 SSH);本地服务器不支持编辑、转发与删除',
         'host.act.connect': '连接',
         'host.act.sftp': 'SFTP',
         'host.act.forwards': '转发',
@@ -141,6 +147,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'settings.open': '打开设置',
         'settings.title': '设置',
         'settings.theme': '主题',
+        'settings.system': '跟随系统',
         'settings.dark': '深色',
         'settings.light': '浅色',
         'settings.language': '语言',
@@ -186,6 +193,12 @@ const messages: Record<Lang, Record<string, string>> = {
         'host.collapse': 'Collapse host list',
         'host.expand': 'Expand host list',
         'host.resize': 'Drag to resize (double-click to reset)',
+        // Built-in local server: opens a terminal on the machine running
+        // gossh (no SSH), hence connect-only — no credentials to edit, no
+        // SSH connection to forward over, and not an inventory record.
+        'host.local': 'Local server',
+        'host.localBadge': 'local',
+        'host.localTip': 'Open a terminal on this machine (no SSH); the local server cannot be edited, forwarded or deleted',
         'host.act.connect': 'Connect',
         'host.act.sftp': 'SFTP',
         'host.act.forwards': 'Forwards',
@@ -291,6 +304,7 @@ const messages: Record<Lang, Record<string, string>> = {
         'settings.open': 'Open settings',
         'settings.title': 'Settings',
         'settings.theme': 'Theme',
+        'settings.system': 'System',
         'settings.dark': 'Dark',
         'settings.light': 'Light',
         'settings.language': 'Language',

@@ -6,7 +6,9 @@
  * 与 VS Code 对齐,避免"半套 VSCode"的拼凑感。
  */
 
-/* ── 主题变量:暗色默认,亮色由 <html data-theme="light"> 覆盖 ── */
+/* ── 主题变量:暗色默认,亮色由 <html data-theme="light"> 覆盖。
+       "跟随系统"在 JS 侧(utils/theme.ts)就解析成 dark/light 再写入,
+       所以这里只有两套变量,不需要 system 分支。 ── */
 :root {
     /* 布局面 */
     --bg-app: #1f1f1f;              /* editor.background 缺省面 */
@@ -253,16 +255,16 @@ select:focus {
     border-color: var(--focus-border);
 }
 
-/* ── 终端滚动条:xterm 视口沿用同一套颜色 ── */
-.xterm-viewport {
+/* ── 终端滚动条:xterm 视口沿用同一套颜色 ──
+   选择器必须写成 `.xterm .xterm-viewport`(0,2,0):xterm 6 起自带一条同样
+   选择器的 `background-color:#000`,只写 `.xterm-viewport` 会被它压过,
+   导致终端底色在亮色主题下仍是黑色。 */
+.xterm .xterm-viewport {
     background-color: var(--term-bg);
     scrollbar-width: thin; /* Firefox */
     scrollbar-color: var(--scrollbar-thumb) transparent;
-}
-
-/* 覆盖 xterm.css 默认 overflow-y: scroll —— 无滚动内容时不显示滚动条,
-   有内容溢出时才出现(滚动功能不受影响,滚动条宽度恒定 8px) */
-.xterm .xterm-viewport {
+    /* 覆盖 xterm.css 默认 overflow-y: scroll —— 无滚动内容时不显示滚动条,
+       有内容溢出时才出现(滚动功能不受影响,滚动条宽度恒定 8px) */
     overflow-y: auto;
 }
 

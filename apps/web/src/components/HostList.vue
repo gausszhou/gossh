@@ -9,24 +9,21 @@
       </button>
     </div>
 
-    <div v-if="hosts.length === 0" class="host-empty">
-      <Server :size="26" class="host-empty-icon" />
-      <div class="host-empty-title">{{ t('host.empty') }}</div>
-      <div class="host-empty-hint">{{ t('host.emptyHint') }}</div>
-    </div>
-
-    <div v-else class="host-scroll">
+    <div class="host-scroll">
       <div
         v-for="h in hosts"
         :key="h.id"
         class="host-row"
-        :class="{ 'menu-open': menuHost?.id === h.id }"
-        :title="t('host.rowHint')"
-        @contextmenu.prevent.stop="openMenu($event, h)"
+        :class="{ 'menu-open': menuHost?.id === h.id, builtin: h.builtin }"
+        :title="h.builtin ? t('host.localTip') : t('host.rowHint')"
+        @contextmenu.prevent.stop="onRowContextMenu($event, h)"
       >
         <!-- 两行布局:第一行名称,第二行 user@addr:port(悬停时让位给操作按钮) -->
         <div class="host-line1">
-          <span class="host-name">{{ h.name }}</span>
+          <span class="host-name">{{ hostName(h) }}</span>
+          <!-- 本地服务器是内置条目而非清单主机:给一个常驻徽标,避免与用户
+               自建的 127.0.0.1 主机混淆(它没有编辑/转发/删除入口) -->
+          <span v-if="h.builtin" class="host-badge">{{ t('host.localBadge') }}</span>
         </div>
         <div class="host-line2">
           <span class="host-addr">{{ h.user }}@{{ h.address }}<template v-if="h.port && h.port !== 22">:{{ h.port }}</template></span>
@@ -34,7 +31,14 @@
 
         <!-- 行内操作(第二行右侧):悬停/聚焦时出现;两段式删除确认 -->
         <span class="row-actions">
-          <template v-if="confirmingDelete === h.id">
+          <!-- 内置本地服务器:只有连接(没有凭据可编辑、没有 SSH 连接可转发、
+               也不是清单记录可删除) -->
+          <template v-if="h.builtin">
+            <button class="row-btn connect" :title="t('host.act.connect')" @click.stop="emit('connect', h)">
+              <Play :size="14" />
+            </button>
+          </template>
+          <template v-else-if="confirmingDelete === h.id">
             <button class="row-btn danger" :title="t('host.act.confirmDelete')" @click.stop="doDelete(h)">
               <Check :size="13" />
             </button>
@@ -61,6 +65,13 @@
             </button>
           </template>
         </span>
+      </div>
+
+      <!-- 内置本地服务器让列表永不为空,所以整块空态不再可能出现;当清单里
+           一条用户主机都没有时,用一行提示保留「怎么加主机」的引导 -->
+      <div v-if="!hasUserHosts" class="host-empty-inline">
+        <Server :size="16" />
+        <span>{{ t('host.empty') }} · {{ t('host.emptyHint') }}</span>
       </div>
     </div>
 
@@ -91,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import {
     ArrowLeftRight, Check, EllipsisVertical, Pencil, Play, Plus, Server,
     Terminal as TerminalIcon, Trash2, X,
@@ -116,6 +127,22 @@ const emit = defineEmits<{
 }>()
 
 const confirmingDelete = ref<string | null>(null)
+
+// hasUserHosts:清单里是否有用户自建的主机(内置本地服务器不算)。
+const hasUserHosts = computed(() => props.hosts.some((h) => !h.builtin))
+
+// hostName 渲染主机显示名:内置本地服务器的名字来自 i18n(服务端只给
+// 一个语言无关的 fallback,见 internal/host.Local)。
+function hostName(h: Host) {
+    return h.builtin ? t('host.local') : h.name
+}
+
+// onRowContextMenu 打开右键菜单。内置条目没有可执行的主机操作
+// (菜单项全是连接/转发/编辑/删除),因此不弹菜单。
+function onRowContextMenu(e: MouseEvent, h: Host) {
+    if (h.builtin) return
+    openMenu(e, h)
+}
 
 // 主机列表刷新后清除待确认状态(对象已变)
 watch(
@@ -260,32 +287,15 @@ onBeforeUnmount(() => {
     color: var(--fg-bright);
 }
 
-/* ── 空态 ── */
-.host-empty {
-    flex: 1 1 auto;
+/* ── 清单为空的引导(内置本地服务器常驻,故不再是整块空态) ── */
+.host-empty-inline {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 6px;
-    padding: 24px 16px;
-    text-align: center;
-    color: var(--fg-hint);
-}
-
-.host-empty-icon {
-    color: var(--fg-hint);
-    opacity: 0.7;
-}
-
-.host-empty-title {
-    font-size: 13px;
-    color: var(--fg-dim);
-}
-
-.host-empty-hint {
+    padding: 10px 12px;
     font-size: 12px;
-    line-height: 1.6;
+    line-height: 1.5;
+    color: var(--fg-hint);
 }
 
 /* ── 列表(主机行两行布局:名称+凭据 / 地址) ── */
@@ -354,6 +364,17 @@ onBeforeUnmount(() => {
     font-family: 'SF Mono', Consolas, 'DejaVu Sans Mono', monospace;
     font-size: 11px;
     color: var(--fg-hint);
+}
+
+/* 内置条目徽标(本地服务器):与用户自建主机区分,不参与文本省略 */
+.host-badge {
+    flex: 0 0 auto;
+    padding: 0 4px;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    line-height: 14px;
+    color: var(--fg-muted);
 }
 
 .host-row:hover .host-addr {

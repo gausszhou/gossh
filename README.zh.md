@@ -28,6 +28,9 @@ gossh serve
 - **端口转发**:local / remote / dynamic(SOCKS5);主机级转发跑在主机专属的
   转发连接上,**不随会话生灭**——关终端页签/销毁会话转发仍在
   (见 [ADR 0007](docs/adr/0007-host-forwards-resident.md))
+- **本地服务器**:主机清单首位的常驻条目(127.0.0.1),连接即在运行 gossh 的
+  机器上开一个本地终端——本机 PTY,不经 SSH、无需凭据;只能连接,不可编辑/
+  转发/删除(见 [ADR 0008](docs/adr/0008-local-server.md))
 - **断开存活**:浏览器断开或刷新,SSH 会话继续存活,空闲超时(默认 900s)后销毁
 - **单二进制交付**:前端经 `go:embed` 内嵌,跨平台编译无需 Node 运行时
 - **桌面形态(Linux + Windows)**:`gossh app` 托盘常驻、开机自启、单实例;自动开浏览器并
@@ -116,6 +119,9 @@ gossh version
 - 密码/口令只进系统 keyring,永不落盘明文;keyring 不可用时不持久化
 - 主机密钥 TOFU 校验;指纹不匹配拒绝连接
 - 数据不离开本机进程;暴露到网络请自行加 TLS 反代并配合 `--ws-origin`
+- 内置的本地服务器会在运行 gossh 的机器上执行命令:持有访问令牌者即可用该
+  用户身份执行任意命令。保持只监听回环的默认值;可用 `GOSSH_LOCAL_SHELL`
+  指定本地 shell
 
 ## 架构
 
@@ -124,12 +130,13 @@ internal/api        HTTP/WS 路由、令牌、主机/转发处理器
 internal/session    会话注册表与生命周期(幂等创建、抢占、空闲淘汰,搬迁自 gotty)
 internal/terminal   浏览器二进制帧协议(webtty,搬迁自 gotty)
 internal/sshtty     session.Terminal 的 SSH 实现(远端 PTY shell)
+internal/localtty   session.Terminal 的本地服务器实现(本机 PTY:Unix /dev/ptmx、Windows ConPTY)
 internal/sshx       直连拨号、凭据解析、TOFU 信任库、keyring
 internal/host       主机清单(hosts.json)
 apps/web            Vue3 + Vite + xterm.js(页签/主机列表)
 ```
 
-详见 `docs/adr/`(0001-0005)、`CONTEXT.md`(领域术语)与
+详见 `docs/adr/`(0001-0008)、`CONTEXT.md`(领域术语)与
 `docs/design/vscode-style-ui-guide.md`(UI 样式指导)。
 
 ## 开发

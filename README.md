@@ -35,6 +35,10 @@ the process.
   forwards run on a dedicated per-host forward connection, outliving any
   interactive session (session close does not drop them, see
   [ADR 0007](docs/adr/0007-host-forwards-resident.md))
+- **Local server**: the first row of the host list is a built-in entry
+  (127.0.0.1) that opens a terminal on the machine running gossh — a local
+  PTY, no SSH and no credentials. Connect-only: it cannot be edited,
+  forwarded or deleted (see [ADR 0008](docs/adr/0008-local-server.md))
 - **Detach-surviving sessions**: closing or refreshing the browser does
   not kill the SSH session; it idles out (default 900s) before teardown
 - **One binary**: the frontend is embedded via `go:embed`; cross-compiles
@@ -143,6 +147,9 @@ gossh version
   hosts; a fingerprint mismatch refuses the connection
 - Data never leaves the local process; if you expose the server to the
   network, terminate TLS via a reverse proxy and use `--ws-origin`
+- The built-in local server runs commands on the machine hosting gossh:
+  anyone holding the access token can execute anything as that user. Keep
+  the loopback default; set `GOSSH_LOCAL_SHELL` to pick a different shell
 
 ## Architecture
 
@@ -152,13 +159,15 @@ internal/session    session registry and lifecycle (idempotent create,
                     preemption, idle expiry — ported from gotty)
 internal/terminal   browser binary frame protocol ("webtty", ported from gotty)
 internal/sshtty     the session.Terminal implementation over SSH (remote PTY shell)
+internal/localtty   the session.Terminal implementation for the local server
+                    (local PTY: /dev/ptmx on Unix, ConPTY on Windows)
 internal/sshx       direct dialing, credential resolution, TOFU trust store,
                     keyring
 internal/host       host inventory (hosts.json)
 apps/web            Vue3 + Vite + xterm.js (tabs / host inventory)
 ```
 
-See `docs/adr/` (0001–0005), `CONTEXT.md` (domain glossary) and
+See `docs/adr/` (0001–0008), `CONTEXT.md` (domain glossary) and
 `docs/design/vscode-style-ui-guide.md` (UI style guide).
 
 ## Development

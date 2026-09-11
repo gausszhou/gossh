@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gausszhou/gossh/internal/host"
 	"github.com/gausszhou/gossh/internal/session"
 	"github.com/gausszhou/gossh/internal/sshx"
 	"github.com/gausszhou/gossh/internal/terminal"
@@ -115,20 +116,23 @@ func (server *Server) handleCreateSession(w http.ResponseWriter, r *http.Request
 	// 主机级转发常驻在主机专属转发连接上(ADR-0007):每次会话建立都顺带
 	// ensure(幂等)——连接未起则带本次凭据拨号并拉起 host.Forwards;
 	// 浏览器输入的密码/口令顺带成为转发连接的拨号凭据。转发不随会话销毁。
-	if spec.HostID != "" {
+	// 本地服务器没有 SSH 连接可承载转发,跳过。
+	if spec.HostID != "" && !host.IsLocal(spec.HostID) {
 		server.forwardHosts.ensure(spec.HostID, forwardProvidedSecrets(req))
 	}
 
-	// 连接成功后按需把秘密存入 keyring
-	if req.SavePassword && req.Password != nil && *req.Password != "" {
-		if hpErr := server.savePasswordFor(req.HostID, *req.Password); hpErr != nil {
-			log.Printf("Failed to save password to keyring: %s", hpErr)
+	// 连接成功后按需把秘密存入 keyring(本地服务器无凭据,不涉及)
+	if !host.IsLocal(spec.HostID) {
+		if req.SavePassword && req.Password != nil && *req.Password != "" {
+			if hpErr := server.savePasswordFor(req.HostID, *req.Password); hpErr != nil {
+				log.Printf("Failed to save password to keyring: %s", hpErr)
+			}
 		}
-	}
-	if req.SavePassphrase && req.Passphrase != nil && *req.Passphrase != "" {
-		if h, hpErr := server.inventory.Get(req.HostID); hpErr == nil && h.Credential.Kind == "key" {
-			if seErr := server.secrets.SetPassphrase(h.Credential.KeyPath, *req.Passphrase); seErr != nil {
-				log.Printf("Failed to save passphrase to keyring: %s", seErr)
+		if req.SavePassphrase && req.Passphrase != nil && *req.Passphrase != "" {
+			if h, hpErr := server.inventory.Get(req.HostID); hpErr == nil && h.Credential.Kind == "key" {
+				if seErr := server.secrets.SetPassphrase(h.Credential.KeyPath, *req.Passphrase); seErr != nil {
+					log.Printf("Failed to save passphrase to keyring: %s", seErr)
+				}
 			}
 		}
 	}

@@ -54,10 +54,32 @@
             <div v-if="knownHostsError" class="kh-error">{{ knownHostsError }}</div>
           </div>
 
-          <!-- 主题:深色 / 浅色 -->
+          <!-- 主题:跟随系统（默认）/ 深色 / 浅色 -->
           <div class="settings-section">
             <div class="settings-label">{{ t('settings.theme') }}</div>
             <div class="settings-options">
+              <button
+                class="option-btn"
+                :class="{ active: theme === 'system' }"
+                @click="selectTheme('system')"
+              >
+                <!-- 显示器图标(lucide monitor,内联以与 ☾/☀ 字形同色同尺寸) -->
+                <svg
+                  class="option-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect width="20" height="14" x="2" y="3" rx="2" />
+                  <line x1="8" x2="16" y1="21" y2="21" />
+                  <line x1="12" x2="12" y1="17" y2="21" />
+                </svg>
+                {{ t('settings.system') }}
+              </button>
               <button
                 class="option-btn"
                 :class="{ active: theme === 'dark' }"
@@ -68,6 +90,10 @@
                 :class="{ active: theme === 'light' }"
                 @click="selectTheme('light')"
               >☀ {{ t('settings.light') }}</button>
+            </div>
+            <!-- 选了"跟随系统"时点明当前实际生效的外观(系统偏好可在系统设置里改) -->
+            <div v-if="theme === 'system'" class="theme-hint">
+              {{ resolvedTheme === 'light' ? t('settings.light') : t('settings.dark') }}
             </div>
           </div>
 
@@ -117,24 +143,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { lang, setLang, t } from '../utils/i18n'
 import { getPageTitle, setPageTitle, getToken, listKnownHosts, forgetKnownHost } from '../utils/api'
 import { logger } from '../utils/logger'
-import type { Theme } from '../utils/theme'
+import type { Theme, ThemePreference } from '../utils/theme'
 import type { KnownHost } from '../utils/types'
 
 const props = defineProps<{
     // 弹窗是否可见(由 App 控制)
     open: boolean
-    // 当前主题(驱动选项高亮;实际应用由 App 完成并回传)
-    theme: Theme
+    // 用户当前的偏好(可能是 system;驱动选项高亮;实际应用由 App 完成并回传)
+    theme: ThemePreference
+    // system 偏好下实际生效的外观,仅用于"当前生效"提示
+    resolvedTheme?: Theme
 }>()
 
 const emit = defineEmits<{
     (e: 'close'): void
-    // 请求切换主题(目标主题),App 负责 applyTheme + notifyThemeChange
-    (e: 'theme', theme: Theme): void
+    // 请求切换主题偏好(目标偏好),App 负责 applyTheme + notifyThemeChange
+    (e: 'theme', theme: ThemePreference): void
     // 页面标题已保存(服务端规范化后的值),App 负责应用 document.title
     (e: 'title-saved', title: string): void
 }>()
@@ -143,10 +171,13 @@ function close() {
     emit('close')
 }
 
-// 选择主题:与当前不同才上报(避免无谓重渲染)
-function selectTheme(theme: Theme) {
+// 选择主题:与当前偏好不同才上报(避免无谓重渲染)
+function selectTheme(theme: ThemePreference) {
     if (theme !== props.theme) emit('theme', theme)
 }
+
+// 实际生效的外观;调用方未传(如独立使用组件)时按暗色说明
+const resolvedTheme = computed<Theme>(() => props.resolvedTheme ?? 'dark')
 
 // 选择语言:setLang 是全局响应式状态,界面文案即时更新
 function selectLang(l: 'zh' | 'en') {
@@ -314,6 +345,10 @@ async function saveTitle() {
     flex: 1 1 0;
     height: 26px;
     padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     background: none;
     border: 1px solid var(--border-input);
     border-radius: var(--radius-sm);
@@ -323,6 +358,21 @@ async function saveTitle() {
     line-height: 1;
     cursor: pointer;
     transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+/* 内联图标与 ☾/☀ 字形视觉对齐(同色、随字号) */
+.option-icon {
+    width: 12px;
+    height: 12px;
+    flex: 0 0 auto;
+}
+
+/* "跟随系统"下的当前生效外观提示 */
+.theme-hint {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--fg-hint);
+    margin-top: 6px;
 }
 
 .option-btn:hover {

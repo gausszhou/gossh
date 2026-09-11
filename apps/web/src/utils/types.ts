@@ -46,6 +46,9 @@ export interface Host {
     forwards?: HostForward[]
     created_at?: number
     updated_at?: number
+    // 内置的本地服务器(本机终端):服务端合成的虚拟记录,不在主机清单里,
+    // 只有「连接」可用(不能编辑/转发/删除)。
+    builtin?: boolean
 }
 
 

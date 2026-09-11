@@ -17,6 +17,7 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/gausszhou/gossh/internal/host"
+	"github.com/gausszhou/gossh/internal/localtty"
 	"github.com/gausszhou/gossh/internal/session"
 	"github.com/gausszhou/gossh/internal/sshtty"
 	"github.com/gausszhou/gossh/internal/sshx"
@@ -106,7 +107,11 @@ func New(manager *session.Manager, options *Options, inventory *host.Inventory, 
 
 // dialHostForward 建立主机级转发连接:与 session 拨号同一链路
 // (TOFU + 凭据解析),但不开 PTY——连接只承载端口转发。
+// 本地服务器没有 SSH 连接,转发无从谈起,直接拒绝。
 func (server *Server) dialHostForward(hostID string, prov *sshx.ProvidedSecrets) (*sshx.DialResult, error) {
+	if host.IsLocal(hostID) {
+		return nil, fmt.Errorf("%w: %s", host.ErrBuiltin, hostID)
+	}
 	h, err := server.inventory.Get(hostID)
 	if err != nil {
 		return nil, err
@@ -126,8 +131,17 @@ func (server *Server) Token() string { return server.token }
 
 // dialFactory is the session manager's TerminalFactory: resolve the host
 // record, dial it with TOFU host-key checks, and wrap the connection in
-// an ssh tty.
+// an ssh tty. The built-in local server takes the local-shell branch
+// instead — no dialing, no credentials (CONTEXT.md → 本地服务器).
 func (server *Server) dialFactory(spec session.ConnectSpec, opts ...terminal.Option) (session.Terminal, error) {
+	if host.IsLocal(spec.HostID) {
+		tty, err := localtty.New(opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to start local shell: %w", err)
+		}
+		return tty, nil
+	}
+
 	h, err := server.inventory.Get(spec.HostID)
 	if err != nil {
 		return nil, fmt.Errorf("host not found: %w", err)

@@ -120,7 +120,8 @@
     />
     <SettingsModal
       :open="settingsOpen"
-      :theme="theme"
+      :theme="themePref"
+      :resolved-theme="theme"
       @close="settingsOpen = false"
       @theme="onThemeSelect"
       @title-saved="onPageTitleSaved"
@@ -137,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { Play, Terminal } from 'lucide-vue-next'
 import TabBar from './components/TabBar.vue'
 import HostList from './components/HostList.vue'
@@ -150,7 +151,10 @@ import {
     listHosts, createSession, checkSessions, destroySession, updateSessionTitle,
     isCredentialError, getPageTitle, getToken, APIError,
 } from './utils/api'
-import { applyTheme, currentTheme, notifyThemeChange, type Theme } from './utils/theme'
+import {
+    applyTheme, currentPreference, onSystemThemeChange, systemDarkQueryMatches,
+    notifyThemeChange, type Theme, type ThemePreference,
+} from './utils/theme'
 import { t } from './utils/i18n'
 import {
     loadManifest, upsertManifest, removeFromManifest, generateSessionID,
@@ -160,13 +164,31 @@ import { loadTabOrder, saveTabOrder } from './utils/tabOrder'
 import type { AppTab, CredentialPayload, Host, StateDescription } from './utils/types'
 
 // ── 主题 / 设置 ──
-const theme = ref<Theme>(currentTheme())
+// themePref 是用户选择(可能为 system);systemDark 是系统配色偏好的实时快照;
+// theme 是解析后实际生效的亮/暗外观,由前两者派生——这样系统偏好变化时,
+// 设置弹窗里的"当前生效"提示也会跟着变。
+const themePref = ref<ThemePreference>(currentPreference())
+const systemDark = ref(systemDarkQueryMatches())
+const theme = computed<Theme>(() =>
+    themePref.value === 'system' ? (systemDark.value ? 'dark' : 'light') : themePref.value,
+)
 const settingsOpen = ref(false)
+// 系统配色偏好监听(挂载时建立,卸载时拆除)
+let unsubscribeSystemTheme: (() => void) | null = null
 
-function onThemeSelect(next: Theme) {
-    applyTheme(next)
-    notifyThemeChange(next)
-    theme.value = next
+// 主题变化统一出口:写 data-theme + 持久化偏好 + 广播给 xterm。
+// 同时观察偏好与解析后的主题:偏好变了但解析结果没变(如 system→dark,
+// 系统本来就是暗色)也必须落盘,否则偏好会在下次启动时丢失。
+watch([themePref, theme], ([pref, resolved], [prevPref, prevResolved]) => {
+    if (pref === prevPref && resolved === prevResolved) return
+    applyTheme(pref)
+    if (resolved !== prevResolved) notifyThemeChange(resolved)
+    logger.info('app', 'theme -> %s (preference=%s)', resolved, pref)
+})
+
+// 手动选择偏好:watch 立即把新主题应用出去(含 system 的即时解析)。
+function onThemeSelect(next: ThemePreference) {
+    themePref.value = next
 }
 
 function onPageTitleSaved(title: string) {
@@ -252,6 +274,12 @@ function hostLabel(h: Host): string {
     return `${h.user}@${h.address}${port}`
 }
 
+// hostName 渲染主机显示名:内置本地服务器的名字由 i18n 决定(服务端只给
+// 语言无关的 fallback,见 internal/host.Local),用户主机用记录里的名字。
+function hostName(h: Host): string {
+    return h.builtin ? t('host.local') : h.name
+}
+
 async function refreshHosts() {
     try {
         hosts.value = await listHosts()
@@ -311,10 +339,10 @@ function addSshTab(s: StateDescription, host: Host, label: string, activate = tr
     const tab: AppTab = {
         id: s.id,
         kind: 'ssh',
-        title: title || host.name,
+        title: title || hostName(host),
         sessionId: s.id,
         hostId: host.id,
-        hostName: host.name,
+        hostName: hostName(host),
         hostLabel: label,
         alive: true,
         connected: false,
@@ -604,6 +632,13 @@ const bootError = ref('')
 onMounted(async () => {
     document.title = 'GoSSH'
 
+    // 跟随系统:仅当用户选择为 system 时,系统配色变化才实时生效
+    // (选了亮/暗即视为固定,用户的手动选择优先于系统)。这里只更新
+    // 系统快照,应用/广播统一由 theme 的 watch 完成。
+    unsubscribeSystemTheme = onSystemThemeChange((resolved) => {
+        systemDark.value = resolved === 'dark'
+    })
+
     if (!getToken()) {
         // URL 没有令牌:直接引导输入,跳过会 401 的刷新
         window.setTimeout(() => openTokenPrompt(), 100)
@@ -633,10 +668,10 @@ onMounted(async () => {
                     {
                         id: e.id,
                         kind: 'ssh',
-                        title: e.title || host?.name || e.hostId,
+                        title: e.title || (host ? hostName(host) : e.hostId),
                         sessionId: e.id,
                         hostId: e.hostId,
-                        hostName: host?.name || e.hostId,
+                        hostName: host ? hostName(host) : e.hostId,
                         hostLabel: host ? hostLabel(host) : e.hostId,
                         alive: true,
                         connected: false,
@@ -660,6 +695,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     if (pollTimer) clearInterval(pollTimer)
+    unsubscribeSystemTheme?.()
 })
 </script>
 

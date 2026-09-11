@@ -35,6 +35,10 @@ const terminalEl = ref<HTMLElement>()
 let term: XTerminal
 let fitAddon: FitAddon
 let resizeHandler: () => void
+// 观察终端容器自身尺寸:侧栏拖宽/折叠等布局变化不触发 window.resize
+let resizeObserver: ResizeObserver | null = null
+// 同一帧内的多次触发合并成一次 fit(句柄 0 表示当前没有待执行的帧)
+let fitRaf = 0
 let unsubscribeTheme: (() => void) | null = null
 
 // 终端内部配色跟随亮/暗主题(与页面 CSS 变量一致)。暗色终端面取
@@ -112,13 +116,24 @@ onMounted(() => {
   ;(term.element as HTMLElement).style.fontFamily = FONT_FAMILY
 
   resizeHandler = () => {
-    fit()
+    scheduleFit()
   }
 
   requestAnimationFrame(() => {
-    resizeHandler()
+    fit()
     window.addEventListener('resize', resizeHandler)
   })
+
+  // 容器尺寸变化统一走 ResizeObserver:仅监听 window.resize 时,只改变
+  // 布局(左侧栏拖拽调宽、折叠/展开、会话工具条高度变化)的尺寸变化收不到
+  // 事件,xterm 的 cols/rows 会停在旧值 —— 表现为终端不再随容器重排
+  // (右缘留白或文本被裁切)。v-show 隐藏的容器为 0×0,fit() 内部已跳过。
+  try {
+    resizeObserver = new ResizeObserver(() => scheduleFit())
+    resizeObserver.observe(terminalEl.value!)
+  } catch {
+    // 环境不支持 ResizeObserver:退回上面的 window.resize(仅覆盖窗口缩放)
+  }
 
   // 跟随亮/暗主题,动态切换 xterm 内部的配色(纯渲染层;不向 PTY 同步)
   unsubscribeTheme = onThemeChange((theme) => {
@@ -128,18 +143,65 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (resizeHandler) window.removeEventListener('resize', resizeHandler)
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  if (fitRaf) cancelAnimationFrame(fitRaf)
+  fitRaf = 0
   unsubscribeTheme?.()
   term?.dispose()
 })
+
+// 尺寸变化的唯一入口:窗口缩放与容器自身尺寸变化都汇到这里,同一帧内只
+// 执行一次 fit(拖拽侧栏时 pointermove 频率高于渲染帧,RO 也会连续触发;
+// 逐次 fit 会向 PTY 连发 resize 帧)。fit 会改变容器内部结构,放进下一帧
+// 执行同时避开 "ResizeObserver loop completed with undelivered
+// notifications" 告警。
+function scheduleFit() {
+  if (fitRaf) return
+  fitRaf = requestAnimationFrame(() => {
+    fitRaf = 0
+    fit()
+  })
+}
 
 // fit 重新适配容器尺寸;v-show 隐藏后重新显示时必须调用(激活 watcher)。
 // 隐藏(v-show display:none)或未布局的容器高度为 0:FitAddon 会把 rows
 // 钳到 1 并 resize 出"1 行终端",该会话从此只剩一行、光标永远在第一行、
 // 无法向下 —— 因此零尺寸时跳过,等可见后再由上层 fit。
+//
+// 不直接调用 fitAddon.fit():它算列数时会固定预留 14px 给滚动条
+// (@xterm/addon-fit 0.11.0:`scrollback !== 0 ? overviewRuler?.width || 14 : 0`,
+// 传 0 也会被 `||` 回落到 14;上游 master 已改成 options.scrollbar,尚未发版),
+// 于是网格右缘永远空出一条 14px 留白,和左侧 7px 内边距不对称。这里只用它
+// 的 proposeDimensions(算但不应用)拿到行数与单元格尺寸,再按容器全宽把
+// 这条留白折算成列补回去,一次 resize 到位。
 function fit() {
   const el = terminalEl.value
   if (!el || el.clientWidth === 0 || el.clientHeight === 0) return
-  fitAddon?.fit()
+  const dims = fitAddon?.proposeDimensions()
+  if (!dims) return
+  const cols = fullWidthCols(el, dims.cols)
+  if (cols !== term.cols || dims.rows !== term.rows) {
+    term.resize(cols, dims.rows)
+  }
+}
+
+// fullWidthCols 用容器实际宽度重算列数,把 FitAddon 预留的滚动条宽度
+// 还回来。单元格宽度取自**当前已渲染**的网格:.xterm-screen 的宽度除以
+// term.cols(WebGL 与 DOM 渲染器都会把 screen 元素设成 cols × cellWidth),
+// 因此不依赖 xterm 私有 API。注意不能用 dims.cols 去除 —— 那是 FitAddon
+// 按"预留后"宽度算出来的列数,和 screen 的宽度不在同一把尺子上,算出的
+// 单元格宽度会偏大,留白就收不回来。测不出时退回 FitAddon 的结果。
+function fullWidthCols(el: HTMLElement, fallbackCols: number): number {
+  const current = term?.cols ?? 0
+  if (current < 2) return fallbackCols
+  const screen = term?.element?.querySelector<HTMLElement>('.xterm-screen')
+  if (!screen) return fallbackCols
+  const width = screen.getBoundingClientRect().width
+  if (!(width > 0)) return fallbackCols
+  const cellWidth = width / current
+  if (!Number.isFinite(cellWidth) || cellWidth <= 0) return fallbackCols
+  return Math.max(fallbackCols, Math.floor(el.clientWidth / cellWidth))
 }
 
 function info() {

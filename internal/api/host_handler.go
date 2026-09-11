@@ -9,8 +9,11 @@ import (
 )
 
 // handleListHosts implements GET /api/hosts.
+// 内置的本地服务器排在首位:它是常驻条目,不是清单记录的视图,
+// 因此 List() 不含它,由这里显式拼上(编辑/转发/删除都会被拒绝)。
 func (server *Server) handleListHosts(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, server.inventory.List())
+	hosts := server.inventory.List()
+	writeJSON(w, http.StatusOK, append([]*host.Host{host.Local()}, hosts...))
 }
 
 // hostRequest 是 POST/PUT /api/hosts 的请求体:主机字段平铺,

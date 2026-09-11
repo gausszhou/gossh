@@ -14,10 +14,22 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gausszhou/gossh/internal/utils"
 )
 
 // DefaultPort is used when a host record does not set a port.
 const DefaultPort = 22
+
+// LocalID is the reserved id of the built-in local server (CONTEXT.md →
+// 本地服务器): a shell running on the machine that hosts gossh, reached
+// without SSH. It is deliberately NOT part of the persisted inventory —
+// List never returns it and Add/Update/Remove reject it — but Get
+// resolves it, so every code path that turns a host id into a session
+// connect spec keeps working unchanged.
+// User-created ids are always "h_<nanos>_<suffix>", so "local" can never
+// collide with a real host.
+const LocalID = "local"
 
 // Errors returned by the inventory.
 var (
@@ -25,7 +37,28 @@ var (
 	ErrIDExists = errors.New("host id already exists")
 	ErrNameDup  = errors.New("host name already in use")
 	ErrArgument = errors.New("invalid host argument")
+	// ErrBuiltin is returned when adding, editing or deleting the
+	// built-in local server.
+	ErrBuiltin = errors.New("built-in local server cannot be modified")
 )
+
+// IsLocal reports whether id is the built-in local server.
+func IsLocal(id string) bool { return id == LocalID }
+
+// Local returns the built-in local-server record. Address and User are
+// display-only (127.0.0.1 and the OS user of the server process): a local
+// session dials nothing, the session factory recognises LocalID instead.
+// Name is the untranslated fallback — the browser renders its own
+// localized label (i18n host.local).
+func Local() *Host {
+	return &Host{
+		ID:      LocalID,
+		Name:    "Local",
+		Address: "127.0.0.1",
+		User:    utils.CurrentUser(),
+		Builtin: true,
+	}
+}
 
 // CredentialKind enumerates how a host authenticates.
 type CredentialKind string
@@ -69,6 +102,9 @@ type Host struct {
 	Forwards   []Forward  `json:"forwards,omitempty"`
 	CreatedAt  int64      `json:"created_at"`
 	UpdatedAt  int64      `json:"updated_at"`
+	// Builtin marks the virtual local-server record: never persisted, and
+	// the UI only offers «连接» for it(no edit / forwards / delete).
+	Builtin bool `json:"builtin,omitempty"`
 }
 
 // Addr returns the canonical "host:port" of the record.
@@ -148,8 +184,12 @@ func (inv *Inventory) List() []*Host {
 	return out
 }
 
-// Get returns a host by id.
+// Get returns a host by id. The reserved local id always resolves to the
+// built-in local-server record (it has no inventory entry).
 func (inv *Inventory) Get(id string) (*Host, error) {
+	if IsLocal(id) {
+		return Local(), nil
+	}
 	inv.mu.Lock()
 	defer inv.mu.Unlock()
 	h, ok := inv.hosts[id]
@@ -170,6 +210,9 @@ func (inv *Inventory) addLocked(h *Host) error {
 	if h.ID == "" {
 		return fmt.Errorf("%w: id is required", ErrArgument)
 	}
+	if IsLocal(h.ID) {
+		return fmt.Errorf("%w: %s", ErrBuiltin, h.ID)
+	}
 	if _, exists := inv.hosts[h.ID]; exists {
 		return fmt.Errorf("%w: %s", ErrIDExists, h.ID)
 	}
@@ -189,6 +232,9 @@ func (inv *Inventory) addLocked(h *Host) error {
 
 // Update replaces a host record in place (id unchanged).
 func (inv *Inventory) Update(h *Host) error {
+	if IsLocal(h.ID) {
+		return fmt.Errorf("%w: %s", ErrBuiltin, h.ID)
+	}
 	inv.mu.Lock()
 	defer inv.mu.Unlock()
 	old, ok := inv.hosts[h.ID]
@@ -212,6 +258,9 @@ func (inv *Inventory) Update(h *Host) error {
 
 // Remove deletes a host.
 func (inv *Inventory) Remove(id string) error {
+	if IsLocal(id) {
+		return fmt.Errorf("%w: %s", ErrBuiltin, id)
+	}
 	inv.mu.Lock()
 	defer inv.mu.Unlock()
 	h, ok := inv.hosts[id]
