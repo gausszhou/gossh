@@ -1,11 +1,18 @@
 # WebSocket 连接复用与二进制路由协议设计
 
-> 状态：设计中（待评审后实现）
-> 关联：`internal/api/ws_handler.go`（当前每会话一条 WS）、
+> 状态：已实现（v0.3.0 后的当前协议）
+> 关联：`internal/api/ws_handler.go`（`handleWS` 分派两种协议、`wsRouter`
+> 与 `virtualConn` 实现多路复用）、
 > `internal/session/session.go`（附着与抢占状态机）、
-> `internal/terminal/protocol.go`（帧编解码）、
+> `internal/terminal/protocol.go`（帧编解码，含 §2.1 的路由帧）、
+> `apps/web/src/utils/multiplexer.ts`（浏览器侧单连接）、
+> `apps/web/src/utils/session-channel.ts`（浏览器侧逻辑通道 + 编解码）、
 > ADR-0001（会话 id 由客户端生成）、ADR-0002（用 Web UI 承载会话管理）、
 > ADR-0005（访问令牌姿态）
+>
+> **与初稿的一处偏差**：§4 原计划「旧的 `/ws?session_id=xxx` 端点移除」，
+> 实际采用**双协议并存**——带 `?session_id=` 走旧的单会话路径，不带则走
+> 多路复用。前端是本仓库唯一消费者，等新路径稳定后再删旧协议（见 §9）。
 
 ## 1. 背景与动机
 
@@ -133,30 +140,37 @@ internal/api/ws_handler.go
   每条 ws 连接一个 wsRouter: map[sid]*virtualConn + 写锁
 ```
 
-- `handleWS` 从"每连接处理一个会话"改为"每连接管理 N 个会话通道"；
+- `handleWS` 从"每连接处理一个会话"改为按 URL 分派：带 `?session_id=`
+  走 `handleWSSingle`（旧路径，一行未改），不带则交给
+  `handleWSMultiplexed`（`wsRouter` 管理 N 个会话通道）；
 - 会话注册表/状态机/历史持久化（REST 侧）完全不变；
-- 旧的 `/ws?session_id=xxx` 单会话协议端点**移除**（前端为本仓库唯一
-  消费者，随版本同步升级；子协议名 `webtty` 保留）。
+- 旧的 `/ws?session_id=xxx` **暂时保留**（双协议并存），待多路复用稳定后
+  删除 —— 见 §9。子协议名 `webtty` 两种路径共用。
 
 ## 5. 前端架构
 
 ```
-utils/multiplexer.ts(新)   单 WS 连接:令牌/帧编解码/Ping/按 sid 分发
-                              attach(sid)→Promise; 事件('E')回调
-utils/session-channel.ts(新) 每个 attach 一条逻辑通道:读队列 + 按 sid 编码写;
-                              被抢占→onClose(4000 语义)
-utils/ws.ts                现状:每会话一条 WS 的闭包桥接
-                              (openTerminalWS:输入/输出/重连/上行输入门控);
-                              改为在会话通道上收发,其余逻辑保留
-components/TerminalPane.vue  改用全局 Multiplexer.attach(sid) 建立通道,
-                             断开/抢占事件 → 既有弹窗状态机
+utils/multiplexer.ts          单 WS 连接:令牌/帧编解码/Ping/按 sid 分发
+                                 attach(sid)→SessionChannel;'E'/'b' 回调
+utils/session-channel.ts      路由帧编解码 + 每个 attach 一条逻辑通道
+                                 (SessionChannel:按 sid 编码写、事件回调)
+utils/ws.ts                   在会话通道上收发:输入/输出/重连/上行输入
+                                 门控/延迟展示(延迟改由共享连接统一测量)
+components/TerminalPane.vue   改用全局 Multiplexer.attach(sid) 建立通道,
+                                 断开/抢占/销毁事件 → 既有弹窗状态机
 ```
 
 - 全局唯一 `Multiplexer`（每页一条 WS），多个常驻 `TerminalPane`
-  共享；
+  共享；没有会话占用时连接会被收掉，下一个 attach 再开一条；
 - 连接级断线 → 所有通道 `onClose` → 各视图弹"连接已断开"；
-- 被抢占 → `onClose(4000)` → "会话已被其他客户端接管"弹窗；
+- 被抢占 → `'E' 0x01` → "会话已被其他客户端接管"弹窗，且**不自动重连**
+  （否则两个客户端互相踢）；
 - 会话销毁（`'E' 0x02`）→ `onGone` → "会话已销毁"弹窗。
+
+> 初稿写的"被抢占 → `onClose(4000)`"没有落地：多路复用下不能靠关闭码
+> 表达单个会话的命运（一条连接上还有别的会话），改用了 `'E'` 事件帧。
+> 延迟也从"每会话一个 Ping"改成由共享连接统一测量后广播给所有通道——
+> RTT 本来就是这条连接的属性。
 
 ## 6. 边界与异常
 
@@ -171,23 +185,57 @@ components/TerminalPane.vue  改用全局 Multiplexer.attach(sid) 建立通道,
 
 ## 7. 测试计划
 
-- **单元**：帧编解码（路由头 round-trip、连接级/会话级、长度越界）；
+以下均已落地，见 `internal/api/ws_multiplex_test.go`：
+
+- **单元**：帧编解码（路由头 round-trip、连接级/会话级、长度越界、
+  sid 长度、空会话帧）；
   `Session.Attach` 抢占（旧通道被关、owner 校验、状态不串）。
 - **集成（httptest + coder/websocket）**：
-  - 单 WS 连接并发附着 2~3 个 `cat` 会话，输入输出独立回显；
+  - 单 WS 连接并发附着 2~3 个会话，输入输出独立回显、互不串台；
   - 第二个 WS 连接 Attach 同一会话 → 第一个连接收到 `'E' preempted`
     且状态回 IDLE，新连接收到 `'a'`；
   - WS 关闭 → 所有已附着会话回 IDLE；
-  - Attach 已销毁会话 → `'b'`。
-- **前端**：`vue-tsc` + `vite build`；人工验证页签切换（v-show 常驻）、
-  延迟显示、抢占/断线弹窗。
+  - Attach 已销毁/不存在的会话 → `'b'`；
+  - 同一连接重复 Attach 同一 sid → 幂等，仍在用的桥接不受影响；
+  - Detach → 该会话回 IDLE，同连接上的其他会话不受影响；
+  - 连接级 Ping → Pong（会话级 Ping 也仍然可用）。
+- **跨语言契约**：`TestGoDecodesWhatTheBrowserEncodes` 用 TypeScript
+  编码器（`session-channel.ts` 经 tsc 编译后）实际产出的字节作为十六进制
+  夹具，由 Go 解码器验证——防止两端悄悄漂移。
+- **前端**：`vue-tsc --noEmit` + `vite build`；另外用编译出的前端编解码器
+  在 Node 里驱动一条真实连接跑通「附着 → ping → 双向输入输出 → detach →
+  抢占」全流程。人工验证项：页签切换（v-show 常驻）、延迟显示、
+  抢占/断线弹窗。
 
 ## 8. 分步实施
 
 1. `internal/terminal/protocol.go`：路由帧编解码 + 新类型常量；
 2. `internal/session/session.go`：抢占（`attachEpoch` owner 机制，
    既有实现，本步无需改动）；
-3. `internal/api/ws_handler.go`：单连接路由循环 + virtualConn；
+3. `internal/api/ws_handler.go`：单连接路由循环 + virtualConn，并按
+   `?session_id=` 与否分派新旧协议；
 4. 服务端测试（§7）；
-5. 前端：`multiplexer.ts` + `session-channel.ts`，`TerminalPane` 适配；
+5. 前端：`multiplexer.ts` + `session-channel.ts`，`ws.ts` /
+   `TerminalPane` 适配；
 6. 文档与冒烟验证。
+
+以上 1~6 均已完成；`internal/session/session.go` 如预期未改动。
+
+## 9. 过渡：双协议并存与后续清理
+
+初次实现没有按 §4 初稿移除旧端点，而是让两种协议共用 `/ws`：
+
+| 请求 | 路径 |
+|---|---|
+| `/ws?session_id=xxx&token=…` | `handleWSSingle`：旧的单会话一条连接 |
+| `/ws?token=…`（无 `session_id`） | `handleWSMultiplexed`：`wsRouter` 多路复用 |
+
+理由：多路复用一旦有 bug，终端就是**全部**连不上，而旧路径是现成的退路；
+鉴权（令牌 + ws-origin）是两者共用的同一道门，保留旧路径不引入新的攻击面。
+
+前端已随本次改造重建（`apps/web/dist` → `internal/api/static`），因此新
+路径是默认路径；旧路径只为「未重建的旧浏览器产物」和排查问题留存。
+
+**后续清理**：确认新路径稳定后，删掉 `handleWSSingle` 与 `wsConn`，
+`handleWS` 只保留多路复用分支，并同步更新本文档 §4 与 ADR 相关表述。
+删除前需确认没有别的消费者（当前只有前端和 `internal/api` 的测试）。
