@@ -330,9 +330,19 @@ func gitBashNear(gitPath string) string {
 
 // isWSLBash reports whether path is the WSL launcher Windows ships in
 // System32 rather than a Git/MSYS bash.
+//
+// The match is done by hand instead of via filepath.Dir so it stays
+// GOOS-independent: on a non-Windows host (e.g. CI building the linux
+// binary) filepath.Dir would not treat backslashes as separators and
+// would hand back the whole path, breaking the unit test that runs on
+// every platform. We only care whether the parent directory is System32,
+// so we strip the final element honoring both separators and compare.
 func isWSLBash(path string) bool {
-	dir := strings.ToLower(filepath.Dir(path))
-	return strings.HasSuffix(dir, `\system32`) || strings.HasSuffix(dir, "/system32")
+	lower := strings.ToLower(path)
+	if i := strings.LastIndexAny(lower, `\/`); i >= 0 {
+		lower = lower[:i]
+	}
+	return strings.HasSuffix(lower, `system32`)
 }
 
 // envPath joins parts under the named environment variable, returning ""
