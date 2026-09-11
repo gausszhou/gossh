@@ -126,7 +126,7 @@ func newTestServer(t *testing.T, modify func(*Options)) (*httptest.Server, *sess
 	sink := &stubSink{}
 	stubFactory := func(spec session.ConnectSpec, opts ...terminal.Option) (session.Terminal, error) {
 		st := newStubTerminal(spec.Name)
-		sink.last = st
+		sink.add(st)
 		return st, nil
 	}
 	manager.WithTerminalFactory(stubFactory)

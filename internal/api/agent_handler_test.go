@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -53,7 +54,7 @@ func newAgentTestServer(t *testing.T, mirror bool, permitWrite bool) (*httptest.
 	sink := &stubSink{}
 	stubFactory := func(spec session.ConnectSpec, opts ...terminal.Option) (session.Terminal, error) {
 		st := newStubTerminal(spec.Name)
-		sink.last = st
+		sink.add(st)
 		return st, nil
 	}
 	manager.WithTerminalFactory(stubFactory)
@@ -69,10 +70,39 @@ func newAgentTestServer(t *testing.T, mirror bool, permitWrite bool) (*httptest.
 	return ts, manager, sink
 }
 
-// stubSink remembers the most recently created stub terminal so tests can
-// feed it scripted output.
+// stubSink remembers the stub terminals a test server created. `last` is the
+// most recent one; `all` keeps every one of them in creation order, which
+// multiplexing tests need to address several sessions at once.
 type stubSink struct {
+	mu   sync.Mutex
 	last *stubTerminal
+	all  []*stubTerminal
+}
+
+// add records a freshly created terminal. The factory may be called from
+// different goroutines, so this is guarded.
+func (s *stubSink) add(st *stubTerminal) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.last = st
+	s.all = append(s.all, st)
+}
+
+// byIndex returns the i-th created terminal, nil when out of range.
+func (s *stubSink) byIndex(i int) *stubTerminal {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if i < 0 || i >= len(s.all) {
+		return nil
+	}
+	return s.all[i]
+}
+
+// count reports how many terminals have been created.
+func (s *stubSink) count() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.all)
 }
 
 // doJSON posts a JSON body and decodes the JSON response (authenticated).
