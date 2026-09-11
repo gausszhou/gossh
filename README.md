@@ -255,7 +255,8 @@ HTTP contract the CLI wraps.
   network, terminate TLS via a reverse proxy and use `--ws-origin`
 - The built-in local server runs commands on the machine hosting gossh:
   anyone holding the access token can execute anything as that user. Keep
-  the loopback default; set `GOSSH_LOCAL_SHELL` to pick a different shell
+  the loopback default; the local shell defaults to Git Bash on Windows
+  (then PowerShell) and to `$SHELL` on Unix — `GOSSH_LOCAL_SHELL` overrides it
 
 ## Architecture
 
@@ -284,6 +285,7 @@ make build     # frontend + static + ./build/gossh
 make test      # go vet + gofmt + go test (including core tests ported from gotty)
 make release   # linux/amd64+arm64, darwin/amd64+arm64, windows/amd64
 scripts/build-local.ps1   # Windows: build + install to ~/.local/bin in one go
+scripts/build-local.sh    # same, in sh: Git Bash / Linux / macOS
 scripts/smoke.sh   # end-to-end smoke against a local sshd
 ```
 

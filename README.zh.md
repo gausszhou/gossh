@@ -218,8 +218,9 @@ CLI 背后封装的 HTTP 契约见
 - 主机密钥 TOFU 校验;指纹不匹配拒绝连接
 - 数据不离开本机进程;暴露到网络请自行加 TLS 反代并配合 `--ws-origin`
 - 内置的本地服务器会在运行 gossh 的机器上执行命令:持有访问令牌者即可用该
-  用户身份执行任意命令。保持只监听回环的默认值;可用 `GOSSH_LOCAL_SHELL`
-  指定本地 shell
+  用户身份执行任意命令。保持只监听回环的默认值;本地 shell 默认 Windows 上
+  优先 Git Bash(其次 PowerShell),Unix 取 `$SHELL`,可用 `GOSSH_LOCAL_SHELL`
+  指定其它 shell
 
 ## 架构
 
@@ -245,6 +246,7 @@ make build     # 前端 + static + ./build/gossh
 make test      # go vet + gofmt + go test(含搬迁自 gotty 的核心测试)
 make release   # linux/amd64+arm64, darwin/amd64+arm64, windows/amd64
 scripts/build-local.ps1   # Windows:一键构建 + 安装到 ~/.local/bin
+scripts/build-local.sh    # 同上,sh 版:Git Bash / Linux / macOS
 scripts/smoke.sh   # 对本地 sshd 的端到端冒烟
 ```
 

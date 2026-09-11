@@ -13,7 +13,7 @@
 - **本地服务器不是主机记录**:`host.Local()` 返回一条虚拟记录(`builtin=true`),不落 `hosts.json`;`Inventory.List()` 不返回它,`Add/Update/Remove` 一律返回 `ErrBuiltin`,只有 `Get` 解析它——会话创建路径(host id → ConnectSpec)因此与真实主机共用同一条代码路径,`GET /api/hosts` 在列表首位显式拼上它。
 - **预留 id `local`**:用户主机 id 恒为 `h_<nanos>_<suffix>`,不会与之冲突。
 - **会话工厂按 spec 分派**:`api.dialFactory` 见到 `host.IsLocal(spec.HostID)` 走 `localtty.New`(本机 PTY),否则走原 SSH 链路。`session.Terminal` 接口不变,因此会话管理器、WS 附着、屏幕镜像与 agent 读屏 API 全部复用。
-- **本地 PTY 自己实现,不加依赖**:Unix 走 `/dev/ptmx` + `TIOCSPTLCK`/`TIOCGPTN`(Linux)或 `TIOCPTYGRANT`/`TIOCPTYUNLK`/`TIOCPTYGNAME`(Darwin),Windows 走 ConPTY(`golang.org/x/sys/windows` 已提供 `CreatePseudoConsole`/`ResizePseudoConsole`)。shell 取 `GOSSH_LOCAL_SHELL`,否则 Windows 依次尝试 `pwsh.exe`/`powershell.exe`/`%COMSPEC%`,Unix 取 `$SHELL`/`/bin/sh`。
+- **本地 PTY 自己实现,不加依赖**:Unix 走 `/dev/ptmx` + `TIOCSPTLCK`/`TIOCGPTN`(Linux)或 `TIOCPTYGRANT`/`TIOCPTYUNLK`/`TIOCPTYGNAME`(Darwin),Windows 走 ConPTY(`golang.org/x/sys/windows` 已提供 `CreatePseudoConsole`/`ResizePseudoConsole`)。shell 取 `GOSSH_LOCAL_SHELL`,否则 Windows 依次尝试 Git Bash、`pwsh.exe`/`powershell.exe`、`%COMSPEC%`,Unix 取 `$SHELL`/`/bin/sh`。Windows 上默认给 Git Bash:它自带 Git 的工具链与一套 POSIX 环境,是最接近 SSH 会话的本地 shell;定位它走 `git.exe` 所在目录(以及 `Program Files` 下的常规位置),而不是 `LookPath("bash.exe")` —— 后者在装了 WSL 的机器上会命中 `System32\bash.exe`,那是另一个系统。Git Bash 用 `--login -i` 启动(与 `git-bash.exe` 自身一致),否则 `usr/bin` 不在 PATH、提示符与别名也不会建立;Unix 下 `$SHELL` 以何种方式启动仍由终端自己决定,不干预。
 - **转发与凭据链路显式跳过**:会话建立时不 `ensure` 主机级转发;`dialHostForward` 对本地 id 直接报错;本地终端不实现 `SSHClient()`,会话级转发因此拿到「session has no ssh connection」而不是 panic。
 - **重启后照旧复活**:本地会话与 SSH 会话一样记 `Metadata.Spec`(hostId=`local`),浏览器重连/服务重启后按同一 spec 重建,起一个新的本地 shell。
 
@@ -34,3 +34,7 @@
 - **SSH 连本机 127.0.0.1**:复用现有链路,但要求本机跑着 sshd,且内置条目无从取用户名/凭据(用户与凭据属于主机记录);「不能转发」也失去依据。否决。
 - **把本地主机写进主机清单(种子记录)**:清单是用户数据的唯一事实来源,系统往里塞一条不可删的记录会污染 `hosts.json` 与 `gossh hosts` CLI 的输出。否决。
 - **不做本地 shell,只做一条普通主机记录**:那只是用户的日常操作(自己加一条 localhost 主机),不构成产品特性。
+
+## 修订
+
+- **2026-09-12:Windows 默认 shell 从 PowerShell 改为 Git Bash**。找不到 Git for Windows 时仍按 `pwsh.exe` → `powershell.exe` → `%COMSPEC%` 退回。依据:本地服务器的定位是「本机的一台终端」,与 SSH 会话等价,而 Git Bash 自带 Git 工具链与 POSIX 环境,是 Windows 上最接近这一形态的 shell;`git-bash.exe` 也是普通用户日常打开的那个。连带:TERM 现在也给 MSYS 风格的 shell(`xterm-256color`)——原来 Windows 上一律不注入 TERM,CMD/PowerShell 仍然不给(ConPTY 不是 TERM 型终端),但 Git Bash 少了它 `vim`/`less` 会告警。
