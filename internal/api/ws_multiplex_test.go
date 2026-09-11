@@ -537,3 +537,37 @@ func TestLegacyAndMultiplexedCoexist(t *testing.T) {
 	waitFor(t, func() bool { return strings.Contains(legacyTerm.writtenText(), "L") }, "legacy input to arrive")
 	waitFor(t, func() bool { return strings.Contains(muxTerm.writtenText(), "M") }, "multiplexed input to arrive")
 }
+
+// The browser sends its terminal size immediately after the Attach frame,
+// without waiting for AttachOK (utils/ws.ts reports the size right after
+// mux.attach). The router must therefore register the channel synchronously
+// when it reads 'A' — a resize racing the attach handshake has to land in
+// the channel's queue, not get dropped as "unknown session". This is the
+// regression for the first-connect wrong-size bug: the PTY stayed at its
+// default 80x24 until the user resized the window manually.
+func TestMultiplexedResizeFrameRacingAttach(t *testing.T) {
+	ts, _, sink := newTestServer(t, nil)
+	id := createSession(t, ts, `{"host_id":"h1"}`)["id"].(string)
+
+	conn := dialMultiplexed(t, ts)
+	// Back-to-back: no read between Attach and Resize — exactly the wire
+	// pattern the browser produces on first connect.
+	sendRouted(t, conn, id, terminal.Attach, nil)
+	sendRouted(t, conn, id, terminal.ResizeTerminal, []byte(`{"columns":178,"rows":11}`))
+
+	readRoutedUntil(t, conn, func(f terminal.RoutedFrame) bool {
+		return f.SessionID == id && f.Type == terminal.AttachOK
+	}, "AttachOK for "+id)
+
+	term := sink.byIndex(0)
+	waitFor(t, func() bool {
+		term.mu.Lock()
+		defer term.mu.Unlock()
+		for _, r := range term.resizes {
+			if r == [2]int{178, 11} {
+				return true
+			}
+		}
+		return false
+	}, "the racing resize to reach the terminal")
+}

@@ -27,6 +27,9 @@ export const MSG_SESSION_EVENT = 0x45 // 'E' S→C 会话事件,payload 1 字节
 export const EVENT_PREEMPTED = 0x01 // 被其他客户端接管
 export const EVENT_DESTROYED = 0x02 // 会话已销毁
 
+// 握手完成前上行帧缓存的上限(见 SessionChannel.pending)。
+const PENDING_LIMIT = 64
+
 export interface RoutedFrame {
     /** 会话 id;连接级帧为空串。 */
     sid: string
@@ -120,6 +123,13 @@ export interface ChannelHandlers {
 export class SessionChannel {
     private opened = false
     private closed = false
+    // 握手完成('a' 到达)前的上行帧缓存。客户端在发出 'A' 之后不等
+    // 回执就继续发会话帧 —— ws.ts 附着后立刻上报终端尺寸 —— 这些帧
+    // 若直接上线,要么撞上尚未建好的 socket,要么赶在服务端注册通道
+    // 之前到达而被丢弃,首连的 resize 帧就是这么丢的(PTY 停在默认
+    // 80x24)。缓存到 open 后按原序冲刷。有界:正常流程最多攒一条
+    // resize,超限说明对端长时间不应答,丢新的保旧的。
+    private pending: Array<{ type: number, payload: Uint8Array }> = []
 
     constructor(
         readonly sid: string,
@@ -136,6 +146,12 @@ export class SessionChannel {
                 : typeof payload === 'string'
                   ? new TextEncoder().encode(payload)
                   : payload
+        if (!this.opened) {
+            if (this.pending.length < PENDING_LIMIT) {
+                this.pending.push({ type, payload: body })
+            }
+            return
+        }
         this.wire.send(this.sid, type, body)
     }
 
@@ -151,6 +167,13 @@ export class SessionChannel {
     _deliverOpen(): void {
         if (this.opened || this.closed) return
         this.opened = true
+        // 先冲刷缓存帧再回调 onOpen:上层在 onOpen 之后发的帧必须排在
+        // 缓存之后,顺序不能乱。
+        const buffered = this.pending
+        this.pending = []
+        for (const f of buffered) {
+            this.wire.send(this.sid, f.type, f.payload)
+        }
         this.handlers.onOpen?.()
     }
 
@@ -185,6 +208,9 @@ export class SessionChannel {
     _deliverClose(reason: string): void {
         if (this.closed) return
         this.closed = true
+        // 清掉 opened:重连复用这条通道(_reopen)后要重新走一遍
+        // "缓存到 open 再冲刷",否则重连窗口期发的帧照样会被丢掉。
+        this.opened = false
         this.handlers.onClose?.(reason)
     }
 
