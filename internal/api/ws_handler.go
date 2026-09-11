@@ -29,7 +29,7 @@ func signalByName(name string) (syscall.Signal, bool) {
 }
 
 // handleWS implements GET /ws?session_id=xxx — attach to an existing session.
-// (无认证:连接建立后直接附着;多路复用协议见 docs/ws-multiplex.md)
+// (无认证:连接建立后直接附着;多路复用协议见 docs/design/ws-multiplex.md)
 func (server *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	if server.wsOriginMatcher != nil && !server.wsOriginMatcher.MatchString(r.Header.Get("Origin")) {
 		http.Error(w, "origin not allowed", http.StatusForbidden)

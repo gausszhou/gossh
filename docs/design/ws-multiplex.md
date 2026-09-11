@@ -1,7 +1,11 @@
 # WebSocket 连接复用与二进制路由协议设计
 
 > 状态：设计中（待评审后实现）
-> 关联：`docs/design/feat-architecture.md` §5.2（WebSocket 附着）、§6（二进制协议）
+> 关联：`internal/api/ws_handler.go`（当前每会话一条 WS）、
+> `internal/session/session.go`（附着与抢占状态机）、
+> `internal/terminal/protocol.go`（帧编解码）、
+> ADR-0001（会话 id 由客户端生成）、ADR-0002（用 Web UI 承载会话管理）、
+> ADR-0005（访问令牌姿态）
 
 ## 1. 背景与动机
 
@@ -28,8 +32,10 @@
 +------------------+------+-------+-------------+
 ```
 
-- `session_id`：会话标识，固定 **16 字节 ASCII**（服务端 `RandomString(16)`
-  产生，base36 字母数字）。`session_id` 全 `0x00` 表示**连接级消息**。
+- `session_id`：会话标识，固定 **16 字节 ASCII**（base36 小写 `0-9a-z`。
+  由客户端生成，见 ADR-0001；服务端只在缺省时用 `utils.RandomString(16)`
+  兜底，入参校验见 `utils.IsValidSessionID`）。`session_id` 全 `0x00`
+  表示**连接级消息**。
 - `type`：1 字节消息类型（复用既有 webtty 消息类型：`'1'`~`'5'`，
   新增 `'A'`/`'D'`/`'a'`/`'b'`/`'E'`/`'0'`）。
 - `len`：payload 长度，2 字节大端（payload ≤ 65535）。
@@ -56,7 +62,7 @@
 > （`internal/terminal/protocol.go` 的 EncodeFrame/DecodeClientFrame
 > 与 `Session.bridge`）不需要改动，只在其上加一层路由头。
 
-### 2.3 连接生命周期（无认证）
+### 2.3 连接生命周期
 
 ```
 客户端                         服务端
@@ -70,11 +76,15 @@
   │── WS 关闭 ──────────────────────────→│  所有 Attach 返回,全部会话 → IDLE
 ```
 
-> 访问控制由部署层决定（反向代理、TLS）；协议本身不再携带任何凭据。
+> 访问控制沿用 ADR-0005:访问令牌(`?token=` / `X-Gossh-Token`)与
+> ws-origin 校验都在握手前完成(见 `internal/api/auth.go` 与
+> `mux.Handle("GET /ws", ...)`),复用了单会话协议时的同一道门;协议层
+> 因此不需要再携带任何凭据。
 
 ### 2.4 延迟测量
 
-Ping 仍为**连接级**消息（5 秒周期），RTT 由浏览器
+Ping 仍为**连接级**消息（前端现为 2 秒周期，见
+`apps/web/src/utils/ws.ts`），RTT 由浏览器
 `performance.now()` 差值实测，展示在激活页签标题左侧（既有功能，
 不受多路复用影响）。
 
@@ -95,20 +105,21 @@ Ping 仍为**连接级**消息（5 秒周期），RTT 由浏览器
 沿用既有规则（每会话同窗口期只有 1 个附着者，新附着抢占旧附着）：
 
 1. `Session.Attach` 锁内检查：若会话已 `RUNNING`（被其他连接附着），
-   **新 Attach 立即接管**：关闭旧通道（`io.Closer`），记录 `attachSeq++`
+   **新 Attach 立即接管**：关闭旧通道（`io.Closer`），`attachEpoch++`
    作为所有权令牌；
 2. 旧通道被关闭 → 旧桥接循环退出，其 `defer` 仅在**自己仍是当前
-   owner**（`attachSeq` 未变）时才把状态退回 `IDLE` —— 杜绝抢占瞬间
+   owner**（`attachEpoch` 未变）时才把状态退回 `IDLE` —— 杜绝抢占瞬间
    旧 Attach 误改新 Attach 状态；
 3. 被抢占的旧通道在其同一 WS 连接上收到 `'E' status=0x01`
    （被抢占）事件帧；前端据此显示"会话已被其他客户端接管"弹窗，
    **且不自动重连**（防止两个客户端来回抢占死循环）；
 4. 会话已销毁：Attach 返回 `'b'`（原因"会话已销毁/不存在"）。
 
-> 已记录的限制：旧通道的 `slaveToMaster` goroutine 可能短暂阻塞在
-> PTY 读上（双读窗口），抢占瞬间的输出可能被旧 goroutine 读走而丢弃。
-> 后续可升级为"会话级输出泵"（读循环归属会话，连接仅是可替换的写
-> 槽位）彻底消除，见 `feat-architecture.md` §12.3 关联讨论。
+> 注意:抢占的"双读窗口"在既有实现里已经不存在 —— 会话自创建起就
+> 只有一个 PTY 读循环(`Session.outputPump`,读归属会话;客户端连接只是
+> 可替换的写槽位,见 `internal/session/session.go`),不会出现两个
+> goroutine 同时读 PTY、抢占瞬间丢输出。本步只需在其上加一层按 `sid`
+> 的路由头。
 
 ## 4. 服务端架构
 
@@ -130,11 +141,13 @@ internal/api/ws_handler.go
 ## 5. 前端架构
 
 ```
-utils/multiplexer.ts(新)   单 WS 连接:认证/帧编解码/Ping/按 sid 分发
+utils/multiplexer.ts(新)   单 WS 连接:令牌/帧编解码/Ping/按 sid 分发
                               attach(sid)→Promise; 事件('E')回调
-utils/session-channel.ts(新) implements Connection(webtty 既有接口)
-                              读队列 + 编码写;被抢占→onClose(4000 语义)
-utils/webtty.ts            不变:输入/输出/重连逻辑继续走 Connection 接口
+utils/session-channel.ts(新) 每个 attach 一条逻辑通道:读队列 + 按 sid 编码写;
+                              被抢占→onClose(4000 语义)
+utils/ws.ts                现状:每会话一条 WS 的闭包桥接
+                              (openTerminalWS:输入/输出/重连/上行输入门控);
+                              改为在会话通道上收发,其余逻辑保留
 components/TerminalPane.vue  改用全局 Multiplexer.attach(sid) 建立通道,
                              断开/抢占事件 → 既有弹窗状态机
 ```
@@ -172,7 +185,8 @@ components/TerminalPane.vue  改用全局 Multiplexer.attach(sid) 建立通道,
 ## 8. 分步实施
 
 1. `internal/terminal/protocol.go`：路由帧编解码 + 新类型常量；
-2. `internal/session/session.go`：抢占（`attachSeq` owner 机制）；
+2. `internal/session/session.go`：抢占（`attachEpoch` owner 机制，
+   既有实现，本步无需改动）；
 3. `internal/api/ws_handler.go`：单连接路由循环 + virtualConn；
 4. 服务端测试（§7）；
 5. 前端：`multiplexer.ts` + `session-channel.ts`，`TerminalPane` 适配；
