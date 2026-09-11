@@ -127,14 +127,51 @@ gossh app --no-browser # enter the tray without opening the browser (used by aut
 
 ### CLI
 
+Every command group below drives a **running** server (`gossh serve` /
+`gossh app`), which owns the host inventory, the trust store, the keyring and
+the sessions — so the CLI is a stateless client and never touches the files
+underneath a live server. The address and token come from the same config
+file `gossh serve` reads (default `~/.gossh/config.json`, so a stock setup
+needs no flags); `--server` / `--token` (or `GOSSH_SERVER` / `GOSSH_TOKEN`)
+override them. On a TTY you get a human table; piped or redirected you get
+JSON, so `... | jq` works for free.
+
 Host inventory:
 
 ```sh
+gossh hosts ls                                  # the built-in local server is the first row
 gossh hosts add --name prod --address 10.0.0.5 --user root --key ~/.ssh/id_ed25519
-gossh hosts add --name bastion --address 1.2.3.4 --user ops
-gossh hosts list
+gossh hosts add --name bastion --address 1.2.3.4 --user ops --password --secret -
+gossh hosts show prod                           # by id or by name
+gossh hosts edit prod --name production         # only the flags you pass change
 gossh hosts rm prod
 gossh version
+```
+
+`--secret -` reads the secret from stdin; without it nothing is written to the
+keyring. A `--secret` value typed inline is visible in the process list.
+
+Resident port forwards (configured on the host record, applied by the host's
+own forward connection — they outlive any session, see
+[ADR 0007](docs/adr/0007-host-forwards-resident.md)):
+
+```sh
+gossh hosts forwards ls   prod                  # config + runtime status (running/pending/failed)
+gossh hosts forwards add  prod --kind local --bind 127.0.0.1:8080 --target localhost:80
+gossh hosts forwards rm   prod --bind 127.0.0.1:8080
+```
+
+Trust store, keyring and the deployment-wide page title:
+
+```sh
+gossh known-hosts ls                            # pinned TOFU fingerprints
+gossh known-hosts forget 10.0.0.5:22            # forget it → trusted again on the next connect
+gossh secrets set --kind password --addr 10.0.0.5:22 --user root --secret -
+gossh secrets set --kind passphrase --key ~/.ssh/id_ed25519 --secret -
+gossh secrets rm  --kind password --addr 10.0.0.5:22 --user root
+gossh title get
+gossh title set "My fleet"
+gossh title clear                               # back to the built-in title
 ```
 
 #### Driving sessions (`gossh session`)
@@ -155,6 +192,12 @@ gossh session screen                      # read the rendered screen
 gossh session screen --png -o shot.png    # render a PNG
 gossh session press Ctrl+C                # send named keys
 gossh session press Escape : w q Enter    # …as one sequence
+gossh session rename deploy-window        # title, persisted on the server
+gossh session resize --cols 200 --rows 50 # resize the PTY (drives screen/PNG size)
+gossh session signal SIGTERM              # signal the session's process
+gossh session forwards ls                 # the session's own temporary forwards
+gossh session forwards add --kind local --bind 127.0.0.1:9000 --target localhost:80
+gossh session forwards rm <forward-id>
 gossh session destroy                     # alias: kill
 gossh session usage                       # one-screen reference
 ```
@@ -176,6 +219,13 @@ gossh session usage                       # one-screen reference
 - **Address & token** come from the same config file `gossh serve` reads
   (default `~/.gossh/config.json`), so a stock setup needs no flags;
   `--server` / `--token` (or `GOSSH_SERVER` / `GOSSH_TOKEN`) override it.
+- **Two levels of forwards.** `gossh session forwards` are temporary and ride
+  the session's SSH connection (a local-server session has none, and the CLI
+  says so); `gossh hosts forwards` live on the host record and outlive
+  sessions.
+- **`signal` is not `destroy`.** `gossh session signal SIGTERM` signals the
+  process behind the session; `gossh session destroy` (alias `kill`) tears the
+  whole session down on the server.
 
 A typical agent drive loop:
 

@@ -38,5 +38,8 @@ func init() {
 	rootCmd.AddCommand(buildAppCmd())
 	rootCmd.AddCommand(buildHostsCmd())
 	rootCmd.AddCommand(buildSessionCmd())
+	rootCmd.AddCommand(buildKnownHostsCmd())
+	rootCmd.AddCommand(buildSecretsCmd())
+	rootCmd.AddCommand(buildTitleCmd())
 	rootCmd.AddCommand(buildVersionCmd())
 }

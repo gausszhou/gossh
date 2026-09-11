@@ -104,14 +104,48 @@ gossh app --no-browser # 只进托盘不弹浏览器(开机自启条目用这个
 
 ### CLI
 
+下面每个命令组都驱动一个**正在运行**的服务端(`gossh serve` / `gossh app`)——
+主机清单、信任库、keyring 与会话都由服务端持有,因此 CLI 是无状态客户端,
+不绕过运行中的服务端去改它底下的文件。地址与令牌取自 `gossh serve` 读的同一份
+配置文件(默认 `~/.gossh/config.json`,故默认安装无需任何参数);`--server` /
+`--token`(或 `GOSSH_SERVER` / `GOSSH_TOKEN`)可覆盖。TTY 上是人读表格,被管道
+或重定向时是 JSON,`... | jq` 直接可用。
+
 主机清单:
 
 ```sh
+gossh hosts ls                                  # 内置本地服务器是第一行
 gossh hosts add --name prod --address 10.0.0.5 --user root --key ~/.ssh/id_ed25519
-gossh hosts add --name bastion --address 1.2.3.4 --user ops
-gossh hosts list
+gossh hosts add --name bastion --address 1.2.3.4 --user ops --password --secret -
+gossh hosts show prod                           # 按 id 或名字
+gossh hosts edit prod --name production         # 只改你显式传的字段
 gossh hosts rm prod
 gossh version
+```
+
+`--secret -` 从 stdin 读密钥,不给就不写 keyring;直接写在命令行上的 `--secret`
+值会出现在进程列表里。
+
+主机级常驻端口转发(配置写在主机记录上,由主机自己的转发连接承载——不随会话
+生灭,见 [ADR 0007](docs/adr/0007-host-forwards-resident.md)):
+
+```sh
+gossh hosts forwards ls   prod                  # 配置 + 运行状态(running/pending/failed)
+gossh hosts forwards add  prod --kind local --bind 127.0.0.1:8080 --target localhost:80
+gossh hosts forwards rm   prod --bind 127.0.0.1:8080
+```
+
+信任库、keyring 与全站页面标题:
+
+```sh
+gossh known-hosts ls                            # 已固定的 TOFU 指纹
+gossh known-hosts forget 10.0.0.5:22            # 忘记它 → 下次连接重新首连信任
+gossh secrets set --kind password --addr 10.0.0.5:22 --user root --secret -
+gossh secrets set --kind passphrase --key ~/.ssh/id_ed25519 --secret -
+gossh secrets rm  --kind password --addr 10.0.0.5:22 --user root
+gossh title get
+gossh title set "My fleet"
+gossh title clear                               # 回到内置标题
 ```
 
 #### 驱动会话(`gossh session`)
@@ -132,6 +166,12 @@ gossh session screen                      # 读取当前渲染的屏幕
 gossh session screen --png -o shot.png    # 渲染成 PNG
 gossh session press Ctrl+C                # 发送命名键
 gossh session press Escape : w q Enter    # 作为一整段序列发送
+gossh session rename deploy-window        # 标题,持久化在服务端
+gossh session resize --cols 200 --rows 50 # 调整 PTY 尺寸(屏幕/PNG 也按此渲染)
+gossh session signal SIGTERM              # 给会话进程发信号
+gossh session forwards ls                 # 会话自己的临时转发
+gossh session forwards add --kind local --bind 127.0.0.1:9000 --target localhost:80
+gossh session forwards rm <forward-id>
 gossh session destroy                     # 别名:kill
 gossh session usage                       # 一屏完整参考
 ```
@@ -150,6 +190,11 @@ gossh session usage                       # 一屏完整参考
 - **地址与令牌**取自 `gossh serve` 读的同一份配置文件(默认
   `~/.gossh/config.json`),因此默认安装无需任何参数;`--server` / `--token`
   (或 `GOSSH_SERVER` / `GOSSH_TOKEN`)可覆盖。
+- **两级端口转发。** `gossh session forwards` 是临时的,跑在会话自己的 SSH
+  连接上(本地服务器会话没有 SSH 连接,CLI 会明确报错);`gossh hosts
+  forwards` 写在主机记录上,不随会话生灭。
+- **`signal` 不是 `destroy`。** `gossh session signal SIGTERM` 是给会话背后的
+  进程发信号;`gossh session destroy`(别名 `kill`)是在服务端把整个会话销毁。
 
 典型的 Agent 驱动循环:
 
