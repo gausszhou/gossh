@@ -300,6 +300,7 @@ func (server *Server) setupHandlers() http.Handler {
 	// REST API — sessions (create/host_id semantics, see session_handler.go)
 	apiMux.HandleFunc("POST /api/sessions", server.handleCreateSession)
 	apiMux.HandleFunc("POST /api/sessions/status", server.handleSessionStatus)
+	apiMux.HandleFunc("GET /api/sessions", server.handleListSessions)
 	apiMux.HandleFunc("GET /api/sessions/{id}", server.handleGetSession)
 	apiMux.HandleFunc("PUT /api/sessions/{id}/title", server.handleUpdateTitle)
 	apiMux.HandleFunc("DELETE /api/sessions/{id}", server.handleDeleteSession)

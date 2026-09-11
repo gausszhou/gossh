@@ -37,5 +37,6 @@ func init() {
 	rootCmd.AddCommand(buildServeCmd())
 	rootCmd.AddCommand(buildAppCmd())
 	rootCmd.AddCommand(buildHostsCmd())
+	rootCmd.AddCommand(buildSessionCmd())
 	rootCmd.AddCommand(buildVersionCmd())
 }

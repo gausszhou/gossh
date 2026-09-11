@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 
 	"github.com/gausszhou/gossh/internal/host"
 	"github.com/gausszhou/gossh/internal/session"
@@ -60,6 +61,13 @@ type createSessionRequest struct {
 type sessionStatusResponse struct {
 	// Sessions keyed by id, alive ones only.
 	Sessions map[string]session.StateDescription `json:"sessions"`
+}
+
+type sessionListResponse struct {
+	// Sessions is every session the manager still tracks, oldest first.
+	// Ones whose process exited but that were not destroyed are included —
+	// State/Exited tell the two apart. Sorted so scripts get stable output.
+	Sessions []session.StateDescription `json:"sessions"`
 }
 
 // handleCreateSession implements POST /api/sessions.
@@ -170,6 +178,26 @@ func (server *Server) handleSessionStatus(w http.ResponseWriter, r *http.Request
 	for _, sess := range server.manager.Status(req.IDs) {
 		resp.Sessions[sess.ID()] = sess.StateDescription()
 	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// handleListSessions implements GET /api/sessions.
+//
+// The browser UI never calls this — its tab list is driven by its own
+// localStorage manifest (see the file header above). It exists for the
+// CLI (`gossh session ls`) and for scripts, which have no manifest.
+func (server *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
+	sessions := server.manager.List()
+	resp := sessionListResponse{Sessions: make([]session.StateDescription, 0, len(sessions))}
+	for _, sess := range sessions {
+		resp.Sessions = append(resp.Sessions, sess.StateDescription())
+	}
+	sort.Slice(resp.Sessions, func(i, j int) bool {
+		if resp.Sessions[i].CreatedAt != resp.Sessions[j].CreatedAt {
+			return resp.Sessions[i].CreatedAt < resp.Sessions[j].CreatedAt
+		}
+		return resp.Sessions[i].ID < resp.Sessions[j].ID
+	})
 	writeJSON(w, http.StatusOK, resp)
 }
 
