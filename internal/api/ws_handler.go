@@ -201,8 +201,28 @@ func (rt *wsRouter) dispatch(f terminal.RoutedFrame) {
 
 	switch f.Type {
 	case terminal.Attach:
-		// Attach blocks for the session's lifetime, so it runs per session.
-		go rt.attach(f.SessionID)
+		// 通道必须在本读循环里同步注册,再异步起桥:客户端在发出 'A'
+		// 之后不等回执就继续发会话帧(首连的第一帧就是终端尺寸),如果
+		// 注册发生在 goroutine 里,读循环会先一步把这些帧派发出去 ——
+		// 通道还没进表,被当"未知会话"静默丢弃,PTY 便停在默认 80x24,
+		// 直到用户手动改窗口大小。
+		rt.mu.Lock()
+		if _, dup := rt.chans[f.SessionID]; dup {
+			// 幂等:同一条连接重复 attach 同一会话,不产生第二次桥接。
+			rt.mu.Unlock()
+			_ = rt.writeRouted(f.SessionID, terminal.AttachOK, nil)
+			return
+		}
+		sess, err := rt.server.manager.Get(f.SessionID)
+		if err != nil {
+			rt.mu.Unlock()
+			_ = rt.writeRouted(f.SessionID, terminal.AttachFail, []byte("session not found"))
+			return
+		}
+		vc := newVirtualConn(rt, f.SessionID, sess)
+		rt.chans[f.SessionID] = vc
+		rt.mu.Unlock()
+		go rt.attach(vc)
 	case terminal.Detach:
 		rt.detach(f.SessionID)
 	default:
@@ -210,25 +230,13 @@ func (rt *wsRouter) dispatch(f terminal.RoutedFrame) {
 	}
 }
 
-// attach binds a session to a fresh channel and pumps it until the attach
-// ends (client gone, preempted, session destroyed, terminal closed).
-func (rt *wsRouter) attach(sid string) {
-	sess, err := rt.server.manager.Get(sid)
-	if err != nil {
-		_ = rt.writeRouted(sid, terminal.AttachFail, []byte("session not found"))
-		return
-	}
-
-	vc := newVirtualConn(rt, sid, sess)
-	rt.mu.Lock()
-	if _, dup := rt.chans[sid]; dup {
-		// 幂等:同一条连接重复 attach 同一会话,不产生第二次桥接。
-		rt.mu.Unlock()
-		_ = rt.writeRouted(sid, terminal.AttachOK, nil)
-		return
-	}
-	rt.chans[sid] = vc
-	rt.mu.Unlock()
+// attach pumps one pre-registered channel until the attach ends (client
+// gone, preempted, session destroyed, terminal closed). Registration into
+// rt.chans happened synchronously in dispatch; this goroutine only runs the
+// session bridge.
+func (rt *wsRouter) attach(vc *virtualConn) {
+	sid := vc.sid
+	sess := vc.sess
 
 	// AttachOK 与随后的初始化帧由同一 goroutine 顺序写出,客户端因此能
 	// 先看到 OK 再看到输出。

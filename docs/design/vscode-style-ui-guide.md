@@ -329,17 +329,20 @@ function startResize(e: PointerEvent) {
 
 ### 5.2 脚本化的本地"改完即用"
 
-样式改完要能看到效果,建议沉淀一个构建+安装脚本(`scripts/build-local.ps1` 为例):
+样式改完要能看到效果,建议沉淀一个构建+安装脚本(`scripts/build-local.ps1`
+是 Windows 版,`scripts/build-local.sh` 是同一套流程的 sh 版,覆盖 Git Bash /
+Linux / macOS):
 
 1. 校验工具链(node/pnpm/go,含 `go.mod` 声明的版本下限)
 2. 构建前端
 3. 同步产物到后端嵌入目录(go:embed 之类)
 4. 编译二进制并注入版本号(`git describe --tags --always --dirty`)
 5. **结束正在运行的旧进程**(否则覆盖安装 exe 失败)
-6. 安装 + 校验"内嵌产物确为本次构建"(比对产物片段)
+6. 安装 + 校验"装上去的确实是本次构建"(`.sh` 直接比 sha256,`.ps1` 比产物片段)
 
 > Windows 注意:含中文的 `.ps1` **必须保存为 UTF-8 with BOM**,否则 Windows
 > PowerShell 5.1 会按系统 ANSI 代码页解析,中文串被拆坏 → 语法错误刷屏。
+> `.sh` 则统一 LF 行尾(仓库 `.gitattributes` 已强制),中文按 UTF-8 存即可。
 
 ### 5.3 端到端验证(比人眼可靠)
 

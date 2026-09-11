@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -114,7 +115,7 @@ func New(opts ...terminal.Option) (*Tty, error) {
 		shell: shell,
 		args:  args,
 		dir:   startDir(),
-		env:   shellEnv(o.Term),
+		env:   shellEnv(o.Term, shell),
 		cols:  defaultCols,
 		rows:  defaultRows,
 	})
@@ -245,13 +246,18 @@ func (t *Tty) WindowTitleVariables() map[string]interface{} {
 }
 
 // resolveShell picks the shell to run. GOSSH_LOCAL_SHELL overrides the
-// platform default; on Windows the default chain prefers PowerShell (what
-// a modern Windows terminal opens) and falls back to %COMSPEC%.
+// platform default; on Windows the default chain is Git Bash (when Git for
+// Windows is installed) → PowerShell → %COMSPEC%, and on Unix it is $SHELL.
 func resolveShell() (string, []string) {
 	if custom := strings.TrimSpace(os.Getenv("GOSSH_LOCAL_SHELL")); custom != "" {
 		return custom, shellArgs(custom)
 	}
 	if runtime.GOOS == "windows" {
+		// Git Bash 优先:它自带 Git 的工具链与一套 POSIX 环境,
+		// 是 Windows 上最接近 SSH 会话的本地 shell。
+		if bash := findGitBash(); bash != "" {
+			return bash, shellArgs(bash)
+		}
 		for _, candidate := range []string{"pwsh.exe", "powershell.exe"} {
 			if path, err := exec.LookPath(candidate); err == nil {
 				return path, shellArgs(path)
@@ -268,12 +274,100 @@ func resolveShell() (string, []string) {
 	return "/bin/sh", nil
 }
 
-// shellArgs returns the arguments a shell needs to start interactive
+// gitBashLocs are the paths, relative to a Git for Windows install root,
+// where its bash lives. bin\bash.exe is the launcher Git's own tooling
+// uses; usr\bin\bash.exe is the real MSYS bash (same program).
+var gitBashLocs = [][]string{{"bin", "bash.exe"}, {"usr", "bin", "bash.exe"}}
+
+// findGitBash locates Git for Windows' bash, or returns "" when Git for
+// Windows is not installed.
+//
+// A bare exec.LookPath("bash.exe") would not do: on a machine with WSL
+// enabled it hits C:\Windows\System32\bash.exe, which starts a Linux
+// distribution — another system entirely, with another filesystem view.
+// So the search goes through git.exe (its directory tells us the install
+// root), then a few well-known locations, and only then PATH.
+func findGitBash() string {
+	if git, err := exec.LookPath("git"); err == nil {
+		if bash := gitBashNear(git); bash != "" {
+			return bash
+		}
+	}
+	for _, p := range []string{
+		envPath("ProgramFiles", "Git", "bin", "bash.exe"),
+		envPath("ProgramFiles", "Git", "usr", "bin", "bash.exe"),
+		envPath("ProgramFiles(x86)", "Git", "bin", "bash.exe"),
+		envPath("LOCALAPPDATA", "Programs", "Git", "bin", "bash.exe"),
+	} {
+		if p != "" && isFile(p) {
+			return p
+		}
+	}
+	if bash, err := exec.LookPath("bash.exe"); err == nil && !isWSLBash(bash) {
+		return bash
+	}
+	return ""
+}
+
+// gitBashNear walks up from git.exe looking for the bash shipped by the
+// same installation. git.exe sits in <root>\cmd, <root>\bin or
+// <root>\mingw64\bin, so the install root is one or two levels up.
+func gitBashNear(gitPath string) string {
+	dir := filepath.Dir(gitPath)
+	for {
+		for _, rel := range gitBashLocs {
+			if p := filepath.Join(append([]string{dir}, rel...)...); isFile(p) {
+				return p
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+// isWSLBash reports whether path is the WSL launcher Windows ships in
+// System32 rather than a Git/MSYS bash.
+func isWSLBash(path string) bool {
+	dir := strings.ToLower(filepath.Dir(path))
+	return strings.HasSuffix(dir, `\system32`) || strings.HasSuffix(dir, "/system32")
+}
+
+// envPath joins parts under the named environment variable, returning ""
+// when the variable is unset (filepath.Join on an empty base would yield a
+// relative path).
+func envPath(envVar string, parts ...string) string {
+	base := strings.TrimSpace(os.Getenv(envVar))
+	if base == "" {
+		return ""
+	}
+	return filepath.Join(append([]string{base}, parts...)...)
+}
+
+// isFile reports whether path exists and is a regular file.
+func isFile(path string) bool {
+	st, err := os.Stat(path)
+	return err == nil && !st.IsDir()
+}
+
+// shellArgs returns the arguments a shell needs to start interactively
 // without printing a startup banner.
 func shellArgs(shell string) []string {
 	switch strings.TrimSuffix(strings.ToLower(shellBase(shell)), ".exe") {
 	case "pwsh", "powershell":
 		return []string{"-NoLogo"}
+	case "bash":
+		// Windows 上的 bash 是 Git Bash(或 WSL/cygwin):它的完整
+		// 环境(PATH、提示符、别名)由 login shell 的 /etc/profile
+		// 建立 —— Git for Windows 的 git-bash.exe 也正是用
+		// `--login -i` 启动的。Unix 下 $SHELL 以何种方式启动由终端
+		// 自己决定,这里不干预。
+		if runtime.GOOS == "windows" {
+			return []string{"--login", "-i"}
+		}
+		return nil
 	default:
 		return nil
 	}
@@ -308,16 +402,30 @@ func startDir() string {
 
 // shellEnv builds the shell environment: the server's own environment
 // plus TERM (the same value that would be requested from a remote PTY).
-// On Windows TERM is left alone — ConPTY is not a TERM-based terminal.
-func shellEnv(term string) []string {
+// On Windows cmd.exe and PowerShell have no TERM concept — ConPTY is not a
+// TERM-based terminal — so they must not be given one; a MSYS/Cygwin shell
+// (Git Bash) is, and its full-screen programs (vim, less, top) warn
+// without it, so there TERM is set as well.
+func shellEnv(term, shell string) []string {
 	env := os.Environ()
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" && !isUnixShell(shell) {
 		return env
 	}
 	if term == "" {
 		term = "xterm-256color"
 	}
 	return withEnv(env, "TERM", term)
+}
+
+// isUnixShell reports whether shell is a MSYS/Cygwin/POSIX-style shell,
+// i.e. one that reads TERM.
+func isUnixShell(shell string) bool {
+	switch strings.TrimSuffix(strings.ToLower(shellBase(shell)), ".exe") {
+	case "bash", "sh", "dash", "ksh", "zsh", "fish":
+		return true
+	default:
+		return false
+	}
 }
 
 // withEnv sets key=value, replacing any existing entry (duplicate entries
