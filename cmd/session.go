@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -55,6 +56,10 @@ func buildSessionCmd() *cobra.Command {
 		buildSessionWaitCmd(),
 		buildSessionTypeCmd(),
 		buildSessionPressCmd(),
+		buildSessionRenameCmd(),
+		buildSessionResizeCmd(),
+		buildSessionSignalCmd(),
+		buildSessionForwardsCmd(),
 		buildSessionDestroyCmd(),
 		buildSessionUsageCmd(),
 	)
@@ -514,6 +519,126 @@ func buildSessionPressCmd() *cobra.Command {
 	}
 }
 
+// reportSessionState prints the state a mutating session command returns,
+// in the mode cliJSON picks.
+func reportSessionState(cmd *cobra.Command, state session.StateDescription, human string) error {
+	if cliJSON(cmd) {
+		return printJSON(state)
+	}
+	fmt.Fprintln(os.Stdout, human)
+	return nil
+}
+
+func buildSessionRenameCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "rename <title>",
+		Short: "Set a session's title",
+		Long: "Set the session's title (PUT /api/sessions/{id}/title).\n\n" +
+			"The title is persisted on the server, so it survives a destroy and\n" +
+			"shows up in `gossh session ls`. Pass an empty string to clear it.",
+		Args: cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// The args are joined so an unquoted title still works.
+			title := strings.Join(args, " ")
+			c, err := newAPIClient(cmd)
+			if err != nil {
+				return err
+			}
+			sess, err := c.resolveSession(cmd)
+			if err != nil {
+				return err
+			}
+			var res struct {
+				Title string `json:"title"`
+			}
+			if err := c.call(http.MethodPut, "/api/sessions/"+sess.ID+"/title",
+				map[string]string{"title": title}, &res); err != nil {
+				return err
+			}
+			if cliJSON(cmd) {
+				return printJSON(struct {
+					ID    string `json:"id"`
+					Title string `json:"title"`
+				}{ID: sess.ID, Title: res.Title})
+			}
+			fmt.Fprintf(os.Stdout, "Renamed %s to %q\n", sess.ID, res.Title)
+			return nil
+		},
+	}
+}
+
+func buildSessionResizeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "resize --cols N --rows M",
+		Short: "Resize a session's terminal",
+		Long: "Resize the session's PTY. Useful when driving a session from a\n" +
+			"script: the mirror renders at this size, and so does `screen --png`.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cols, _ := cmd.Flags().GetInt("cols")
+			rows, _ := cmd.Flags().GetInt("rows")
+			if cols <= 0 || rows <= 0 {
+				return errors.New("--cols and --rows must be positive")
+			}
+			c, err := newAPIClient(cmd)
+			if err != nil {
+				return err
+			}
+			sess, err := c.resolveSession(cmd)
+			if err != nil {
+				return err
+			}
+			var state session.StateDescription
+			req := map[string]int{"width": cols, "height": rows}
+			if err := c.call(http.MethodPost, "/api/sessions/"+sess.ID+"/resize", req, &state); err != nil {
+				return err
+			}
+			return reportSessionState(cmd, state, fmt.Sprintf("Resized %s to %dx%d", sess.ID, cols, rows))
+		},
+	}
+	cmd.Flags().Int("cols", 0, "Terminal width in columns")
+	cmd.Flags().Int("rows", 0, "Terminal height in rows")
+	return cmd
+}
+
+// sessionSignals mirrors signalByName in internal/api/ws_handler.go — the
+// server accepts exactly these names.
+var sessionSignals = []string{"SIGHUP", "SIGINT", "SIGQUIT", "SIGKILL", "SIGTERM"}
+
+func buildSessionSignalCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "signal <SIGTERM|SIGINT|SIGHUP|SIGQUIT|SIGKILL>",
+		Short: "Send a signal to a session's process",
+		Long: "Send a signal to the remote (or local) process behind a session.\n\n" +
+			"Signals are named without the leading dash: SIGHUP, SIGINT, SIGQUIT,\n" +
+			"SIGKILL, SIGTERM.\n\n" +
+			"Not to be confused with `destroy` (alias `kill`), which tears the\n" +
+			"whole session down on the server rather than signalling its process.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			signal := strings.ToUpper(args[0])
+			if !slices.Contains(sessionSignals, signal) {
+				return fmt.Errorf("unknown signal %q (expected one of %s)", args[0],
+					strings.Join(sessionSignals, ", "))
+			}
+			c, err := newAPIClient(cmd)
+			if err != nil {
+				return err
+			}
+			sess, err := c.resolveSession(cmd)
+			if err != nil {
+				return err
+			}
+			var state session.StateDescription
+			if err := c.call(http.MethodPost, "/api/sessions/"+sess.ID+"/signal",
+				map[string]string{"signal": signal}, &state); err != nil {
+				return err
+			}
+			return reportSessionState(cmd, state, fmt.Sprintf("Sent %s to %s", signal, sess.ID))
+		},
+	}
+}
+
 func buildSessionDestroyCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "destroy",
@@ -581,6 +706,12 @@ COMMANDS:
   type <text>                         Type literal text
     --enter                             Append Enter
   press <key>...                      Send named keys, space separated
+  rename <title>                      Set the session title (persisted)
+  resize --cols N --rows M            Resize the session terminal
+  signal <SIGTERM|SIGINT|...>         Signal the session's process
+  forwards ls                         List the session's port forwards
+  forwards add --kind --bind --target Add a forward (needs an SSH session)
+  forwards rm <forward-id>            Remove one
   destroy | kill                      Destroy the session (record kept as history)
   usage                               This text
 
