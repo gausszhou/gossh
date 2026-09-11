@@ -2,6 +2,8 @@ package localtty
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -138,15 +140,22 @@ func TestResolveShellHonorsEnvOverride(t *testing.T) {
 	}
 }
 
-// TestShellArgsPowerShellNoLogo PowerShell 家族带 -NoLogo(否则欢迎横幅
-// 会占满首屏),其他 shell 不带参数。
-func TestShellArgsPowerShellNoLogo(t *testing.T) {
+// TestShellArgs 各家族 shell 的启动参数。PowerShell 带 -NoLogo(否则欢迎
+// 横幅占满首屏);bash 只在 Windows 上带 --login -i(见 shellArgs 注释)。
+func TestShellArgs(t *testing.T) {
+	bashArgs := []string(nil)
+	if runtime.GOOS == "windows" {
+		bashArgs = []string{"--login", "-i"}
+	}
 	cases := map[string][]string{
-		"pwsh":                                   {"-NoLogo"},
-		"pwsh.exe":                               {"-NoLogo"},
-		`C:\Program Files\PowerShell\7\pwsh.exe`: {"-NoLogo"},
-		`C:\Windows\System32\cmd.exe`:            nil,
-		"/bin/bash":                              nil,
+		"pwsh":                                            {"-NoLogo"},
+		"pwsh.exe":                                        {"-NoLogo"},
+		`C:\Program Files\PowerShell\7\pwsh.exe`:           {"-NoLogo"},
+		`C:\Windows\System32\cmd.exe`:                      nil,
+		`C:\Program Files\Git\bin\bash.exe`:                bashArgs,
+		`C:\Program Files\Git\usr\bin\bash.exe`:            bashArgs,
+		"/bin/bash":                                        bashArgs,
+		"/bin/sh":                                          nil,
 	}
 	for shell, want := range cases {
 		got := shellArgs(shell)
@@ -159,6 +168,78 @@ func TestShellArgsPowerShellNoLogo(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestGitBashNearFindsBashAboveGitExe git.exe 可能位于 <root>\cmd、
+// <root>\bin 或 <root>\mingw64\bin,bash 所在目录总在其上层。
+func TestGitBashNearFindsBashAboveGitExe(t *testing.T) {
+	cases := []struct {
+		name    string
+		gitDir  []string
+		bashDir []string
+	}{
+		{"git-in-cmd", []string{"cmd"}, []string{"bin"}},
+		{"git-in-bin", []string{"bin"}, []string{"usr", "bin"}},
+		{"git-in-mingw64-bin", []string{"mingw64", "bin"}, []string{"bin"}},
+		// 没有同装的 bash:应当返回空串(向上走到盘符根为止,而任何支持的
+		// 平台上都不存在 <盘根>\bin\bash.exe)。
+		{"no-git-bash", []string{"cmd"}, nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			root := t.TempDir()
+			gitPath := writeFakeExecutable(t, root, append(c.gitDir, "git.exe")...)
+			want := ""
+			if c.bashDir != nil {
+				want = writeFakeExecutable(t, root, append(c.bashDir, "bash.exe")...)
+			}
+			if got := gitBashNear(gitPath); got != want {
+				t.Fatalf("gitBashNear(%q) = %q, want %q", gitPath, got, want)
+			}
+		})
+	}
+}
+
+// TestIsWSLBash System32 下的 bash.exe 是 WSL 启动器,不是 Git Bash。
+func TestIsWSLBash(t *testing.T) {
+	cases := map[string]bool{
+		`C:\Windows\System32\bash.exe`:         true,
+		`c:\windows\system32\bash.exe`:         true,
+		`C:/Windows/System32/bash.exe`:         true,
+		`C:\Program Files\Git\bin\bash.exe`:    false,
+		`C:\Windows\System32\notbash\bash.exe`: false,
+	}
+	for path, want := range cases {
+		if got := isWSLBash(path); got != want {
+			t.Fatalf("isWSLBash(%q) = %v, want %v", path, got, want)
+		}
+	}
+}
+
+// TestEnvPathSkipsUnsetVariable 变量未设时必须返回空串 —— filepath.Join 对
+// 空 base 会拼出一个相对路径,那是可被误当成真实路径的。
+func TestEnvPathSkipsUnsetVariable(t *testing.T) {
+	t.Setenv("GOSSH_TEST_EMPTY_BASE", "")
+	if got := envPath("GOSSH_TEST_EMPTY_BASE", "Git", "bin"); got != "" {
+		t.Fatalf("envPath with unset base = %q, want empty", got)
+	}
+	t.Setenv("GOSSH_TEST_BASE", "/opt/git")
+	if got, want := envPath("GOSSH_TEST_BASE", "bin", "bash.exe"), filepath.Join("/opt/git", "bin", "bash.exe"); got != want {
+		t.Fatalf("envPath = %q, want %q", got, want)
+	}
+}
+
+// writeFakeExecutable 在 root/parts... 处建一个空文件并返回其路径。
+func writeFakeExecutable(t *testing.T, root string, parts ...string) string {
+	t.Helper()
+	path := filepath.Join(append([]string{root}, parts...)...)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir for %q: %v", path, err)
+	}
+	if err := os.WriteFile(path, []byte("#!/bin/true\n"), 0o755); err != nil {
+		t.Fatalf("write %q: %v", path, err)
+	}
+	return path
 }
 
 // TestWithEnvReplacesExisting 同名变量必须被替换而不是追加:重复条目下
@@ -179,21 +260,36 @@ func TestWithEnvReplacesExisting(t *testing.T) {
 	}
 }
 
-// TestShellEnvWindowsHasNoTerm Windows/ConPTY 不是 TERM 型终端:不得**注入**
-// TERM(环境里本来就有的 TERM 原样透传,不做增删)。
-func TestShellEnvWindowsHasNoTerm(t *testing.T) {
+// TestShellEnvTermFollowsShellKind TERM 只给读 TERM 的 shell:Windows 上
+// cmd.exe/PowerShell 不得**注入** TERM(ConPTY 不是 TERM 型终端),而
+// MSYS 风格的 bash(Git Bash)需要它,否则 vim/less 一类程序会告警;
+// Unix 一律注入。
+func TestShellEnvTermFollowsShellKind(t *testing.T) {
 	t.Setenv("TERM", "dumb")
-	env := shellEnv("xterm-256color")
-	injected := false
-	for _, e := range env {
-		if e == "TERM=xterm-256color" {
-			injected = true
+	cases := []struct {
+		shell      string
+		wantOnUnix bool
+		wantOnWin  bool
+	}{
+		{`C:\Windows\System32\cmd.exe`, true, false},
+		{`C:\Program Files\PowerShell\7\pwsh.exe`, true, false},
+		{`C:\Program Files\Git\bin\bash.exe`, true, true},
+		{"/bin/sh", true, true},
+	}
+	for _, c := range cases {
+		env := shellEnv("xterm-256color", c.shell)
+		injected := false
+		for _, e := range env {
+			if e == "TERM=xterm-256color" {
+				injected = true
+			}
 		}
-	}
-	if runtime.GOOS == "windows" && injected {
-		t.Fatalf("TERM must not be injected on Windows")
-	}
-	if runtime.GOOS != "windows" && !injected {
-		t.Fatalf("TERM must be set on %s", runtime.GOOS)
+		want := c.wantOnUnix
+		if runtime.GOOS == "windows" {
+			want = c.wantOnWin
+		}
+		if injected != want {
+			t.Fatalf("shellEnv(%q) injected TERM = %v, want %v (GOOS=%s)", c.shell, injected, want, runtime.GOOS)
+		}
 	}
 }
