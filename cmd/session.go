@@ -1,24 +1,18 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/gausszhou/gossh/internal/api"
-	"github.com/gausszhou/gossh/internal/config"
-	"github.com/gausszhou/gossh/internal/host"
 	"github.com/gausszhou/gossh/internal/session"
 )
 
@@ -51,11 +45,8 @@ func buildSessionCmd() *cobra.Command {
 			"Reading a screen needs the server's screen mirror (--mirror, on by\n" +
 			"default); writing keys needs --permit-write (also on by default).",
 	}
-	cmd.PersistentFlags().String("server", "", "Base URL of the running server (default: derived from the config file)")
-	cmd.PersistentFlags().String("token", "", "Access token (default: GOSSH_TOKEN, config file, then the token file)")
-	cmd.PersistentFlags().String("token-file", "", "File holding the access token (default: the config file's token_file)")
+	addAPIFlags(cmd)
 	cmd.PersistentFlags().StringP("session", "s", "", "Target session: id, unique id prefix, or title (default: the only session)")
-	cmd.PersistentFlags().Bool("json", false, "Emit JSON (default: human-readable on a TTY, JSON when piped)")
 
 	cmd.AddCommand(
 		buildSessionLsCmd(),
@@ -71,195 +62,10 @@ func buildSessionCmd() *cobra.Command {
 }
 
 // ---------------------------------------------------------------------------
-// endpoint + client
-// ---------------------------------------------------------------------------
-
-// sessionEndpoint resolves the base URL and access token of a running
-// server. The config file is the same one serve reads, so the defaults land
-// on the stock setup; precedence is flags > env > config file > token file.
-func sessionEndpoint(cmd *cobra.Command) (string, string, error) {
-	opts := &api.Options{}
-	// The struct tags are the single source of truth for the defaults, so a
-	// config file that omits a key behaves exactly like serve.
-	if err := config.ApplyDefaultValues(opts); err != nil {
-		return "", "", err
-	}
-	configPath, _ := cmd.Flags().GetString("config")
-	if data, err := os.ReadFile(expandHome(configPath)); err == nil && len(bytes.TrimSpace(data)) > 0 {
-		if err := json.Unmarshal(data, opts); err != nil {
-			return "", "", fmt.Errorf("invalid config file %s: %w", configPath, err)
-		}
-	}
-
-	base, _ := cmd.Flags().GetString("server")
-	if base == "" {
-		base = os.Getenv("GOSSH_SERVER")
-	}
-	if base == "" {
-		if opts.Port == "0" {
-			return "", "", errors.New("the running server chose a random port (--port 0); pass --server http://host:port")
-		}
-		h := opts.Address
-		if h == "" || h == "0.0.0.0" || h == "::" {
-			h = "127.0.0.1"
-		}
-		scheme := "http"
-		if opts.EnableTLS {
-			scheme = "https"
-		}
-		base = fmt.Sprintf("%s://%s:%s", scheme, h, opts.Port)
-	}
-	if !strings.Contains(base, "://") {
-		base = "http://" + base
-	}
-	base = strings.TrimRight(base, "/")
-
-	token, _ := cmd.Flags().GetString("token")
-	if token == "" {
-		token = os.Getenv("GOSSH_TOKEN")
-	}
-	if token == "" {
-		token = opts.Token
-	}
-	if token == "" {
-		tokenFile, _ := cmd.Flags().GetString("token-file")
-		if tokenFile == "" {
-			tokenFile = opts.TokenFile
-		}
-		if tokenFile != "" {
-			if data, err := os.ReadFile(expandHome(tokenFile)); err == nil {
-				token = strings.TrimSpace(string(data))
-			}
-		}
-	}
-	if token == "" {
-		return "", "", errors.New("no access token found: pass --token, set GOSSH_TOKEN, or make sure the server's token file is readable")
-	}
-	return base, token, nil
-}
-
-// expandHome expands a leading "~/" through the real home directory.
-// utils.Expand only reads $HOME, which is unset in a plain Windows shell;
-// os.UserHomeDir() covers that and agrees with $HOME everywhere else.
-func expandHome(path string) string {
-	if !strings.HasPrefix(path, "~/") {
-		return path
-	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return path
-	}
-	return filepath.Join(home, filepath.FromSlash(path[2:]))
-}
-
-// sessionClient is a thin HTTP client for one running server.
-type sessionClient struct {
-	base  string
-	token string
-	http  *http.Client
-}
-
-func newSessionClient(cmd *cobra.Command) (*sessionClient, error) {
-	base, token, err := sessionEndpoint(cmd)
-	if err != nil {
-		return nil, err
-	}
-	return &sessionClient{base: base, token: token, http: &http.Client{}}, nil
-}
-
-// call issues one request with a plain 30s budget. `wait` does not use this:
-// it long-polls, so it passes its own deadline to do().
-func (c *sessionClient) call(method, path string, reqBody, out any) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	return c.do(ctx, method, path, reqBody, out)
-}
-
-func (c *sessionClient) do(ctx context.Context, method, path string, reqBody, out any) error {
-	var body io.Reader
-	if reqBody != nil {
-		payload, err := json.Marshal(reqBody)
-		if err != nil {
-			return err
-		}
-		body = bytes.NewReader(payload)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, c.base+path, body)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	if reqBody != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("cannot reach %s: %w", c.base, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return apiError(resp)
-	}
-	if out == nil {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		return nil
-	}
-	return json.NewDecoder(resp.Body).Decode(out)
-}
-
-// getBytes fetches a response verbatim (the screen's text or PNG body).
-func (c *sessionClient) getBytes(path string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+path, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("cannot reach %s: %w", c.base, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, apiError(resp)
-	}
-	return io.ReadAll(resp.Body)
-}
-
-// apiError turns the API's {"error": "..."} body into a Go error, with a hint
-// for the two refusals a first run is most likely to hit.
-func apiError(resp *http.Response) error {
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	var payload struct {
-		Error string `json:"error"`
-	}
-	message := strings.TrimSpace(string(raw))
-	if json.Unmarshal(raw, &payload) == nil && payload.Error != "" {
-		message = payload.Error
-	}
-	if message == "" {
-		message = resp.Status
-	}
-	switch resp.StatusCode {
-	case http.StatusUnauthorized:
-		return fmt.Errorf("%s (check --token / GOSSH_TOKEN / the server's token file)", message)
-	case http.StatusForbidden:
-		return fmt.Errorf("%s (the server was started with --permit-write=false)", message)
-	case http.StatusServiceUnavailable:
-		if strings.Contains(message, "mirror") {
-			return fmt.Errorf("%s (the screen mirror is on by default; check --mirror)", message)
-		}
-	}
-	return fmt.Errorf("%s: %s", http.StatusText(resp.StatusCode), message)
-}
-
-// ---------------------------------------------------------------------------
 // session discovery
 // ---------------------------------------------------------------------------
 
-func (c *sessionClient) listSessions() ([]session.StateDescription, error) {
+func (c *apiClient) listSessions() ([]session.StateDescription, error) {
 	var payload struct {
 		Sessions []session.StateDescription `json:"sessions"`
 	}
@@ -276,7 +82,7 @@ func (c *sessionClient) listSessions() ([]session.StateDescription, error) {
 // (exact id, then unique id prefix, then title or host name), or — when the
 // flag is omitted — the one and only session, mirroring tu's "default
 // session" convenience.
-func (c *sessionClient) resolveSession(cmd *cobra.Command) (session.StateDescription, error) {
+func (c *apiClient) resolveSession(cmd *cobra.Command) (session.StateDescription, error) {
 	query, _ := cmd.Flags().GetString("session")
 	list, err := c.listSessions()
 	if err != nil {
@@ -312,9 +118,13 @@ func (c *sessionClient) resolveSession(cmd *cobra.Command) (session.StateDescrip
 		return session.StateDescription{}, fmt.Errorf("session id prefix %q is ambiguous (%d matches):\n%s", query, len(byPrefix), formatSessions(byPrefix))
 	}
 
+	// Titles and host names are matched case-insensitively: the local
+	// server's record is named "Local" while every other surface calls it
+	// "local", and users should not have to guess which spelling a session
+	// inherited. An ambiguous match is reported, never guessed.
 	var byName []session.StateDescription
 	for _, s := range list {
-		if (s.Title != "" && s.Title == query) || s.Spec.Name == query {
+		if (s.Title != "" && strings.EqualFold(s.Title, query)) || strings.EqualFold(s.Spec.Name, query) {
 			byName = append(byName, s)
 		}
 	}
@@ -328,63 +138,9 @@ func (c *sessionClient) resolveSession(cmd *cobra.Command) (session.StateDescrip
 	}
 }
 
-// resolveHost turns a host id or name into the id the API wants, asking the
-// server (GET /api/hosts) so the CLI works against a remote server too.
-func (c *sessionClient) resolveHost(query string) (string, error) {
-	var hosts []host.Host
-	if err := c.call(http.MethodGet, "/api/hosts", nil, &hosts); err != nil {
-		return "", err
-	}
-	for _, h := range hosts {
-		if h.ID == query {
-			return h.ID, nil
-		}
-	}
-	var byName []host.Host
-	for _, h := range hosts {
-		if h.Name == query {
-			byName = append(byName, h)
-		}
-	}
-	switch len(byName) {
-	case 1:
-		return byName[0].ID, nil
-	case 0:
-		return "", fmt.Errorf("no host matches %q (see `gossh hosts list`)", query)
-	default:
-		return "", fmt.Errorf("%d hosts are named %q, use the host id", len(byName), query)
-	}
-}
-
 // ---------------------------------------------------------------------------
 // output helpers
 // ---------------------------------------------------------------------------
-
-// cliJSON reports whether a command should emit machine-readable JSON:
-// --json forces it either way, otherwise a TTY gets the human form and a
-// pipe or file gets JSON (terminal-use's convention, so agents piping the
-// CLI get structured output for free).
-func cliJSON(cmd *cobra.Command) bool {
-	if cmd.Flags().Changed("json") {
-		forced, _ := cmd.Flags().GetBool("json")
-		return forced
-	}
-	return !stdoutIsTTY()
-}
-
-func stdoutIsTTY() bool {
-	fi, err := os.Stdout.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice != 0
-}
-
-func printJSON(v any) error {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
-}
 
 func describeSession(s session.StateDescription) string {
 	parts := []string{s.Spec.Name}
@@ -410,38 +166,10 @@ func formatSessions(list []session.StateDescription) string {
 	return renderTable(rows)
 }
 
-// renderTable pads every column but the last, so trailing whitespace never
-// ends up in piped output.
-func renderTable(rows [][]string) string {
-	var widths []int
-	for _, row := range rows {
-		for i, cell := range row {
-			if i >= len(widths) {
-				widths = append(widths, 0)
-			}
-			if n := len([]rune(cell)); n > widths[i] {
-				widths[i] = n
-			}
-		}
-	}
-	var b strings.Builder
-	for _, row := range rows {
-		for i, cell := range row {
-			b.WriteString(cell)
-			if i == len(row)-1 {
-				break
-			}
-			b.WriteString(strings.Repeat(" ", widths[i]-len([]rune(cell))+2))
-		}
-		b.WriteString("\n")
-	}
-	return strings.TrimRight(b.String(), "\n")
-}
-
 // sendBytes writes bytes into a session's PTY (POST /keys). The server still
 // decides: the mirror must be on and --permit-write must not be off.
 func sendBytes(cmd *cobra.Command, payload []byte, encoding string) error {
-	c, err := newSessionClient(cmd)
+	c, err := newAPIClient(cmd)
 	if err != nil {
 		return err
 	}
@@ -478,7 +206,7 @@ func buildSessionLsCmd() *cobra.Command {
 		Short: "List the sessions on the running server",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			c, err := newSessionClient(cmd)
+			c, err := newAPIClient(cmd)
 			if err != nil {
 				return err
 			}
@@ -517,7 +245,7 @@ func buildSessionCreateCmd() *cobra.Command {
 			if hostQuery == "" {
 				return errors.New("--host is required (an inventory host id or name; use `local` for the local server)")
 			}
-			c, err := newSessionClient(cmd)
+			c, err := newAPIClient(cmd)
 			if err != nil {
 				return err
 			}
@@ -582,7 +310,7 @@ func buildSessionScreenCmd() *cobra.Command {
 				return errors.New("--png and --json cannot be combined")
 			}
 
-			c, err := newSessionClient(cmd)
+			c, err := newAPIClient(cmd)
 			if err != nil {
 				return err
 			}
@@ -688,7 +416,7 @@ func buildSessionWaitCmd() *cobra.Command {
 				return errors.New("--timeout must be between 1 and 300000 ms (the server caps a wait at 5 minutes)")
 			}
 
-			c, err := newSessionClient(cmd)
+			c, err := newAPIClient(cmd)
 			if err != nil {
 				return err
 			}
@@ -793,7 +521,7 @@ func buildSessionDestroyCmd() *cobra.Command {
 		Short:   "Destroy a session (its record stays as history)",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			c, err := newSessionClient(cmd)
+			c, err := newAPIClient(cmd)
 			if err != nil {
 				return err
 			}
@@ -828,7 +556,7 @@ func buildSessionUsageCmd() *cobra.Command {
 	}
 }
 
-// sessionUsageText is deliberately terse and LLM-friendly — the audience is an
+// sessionUsageText is deliberately terse and LLM-friendly -- the audience is an
 // agent that was told "gossh session" exists and needs the whole surface at
 // once, which is why it exists alongside cobra's --help.
 const sessionUsageText = `gossh session -- drive the sessions of a running gossh server from the CLI
@@ -848,7 +576,7 @@ COMMANDS:
     -o/--output <file>                  PNG path (default: temp file, path printed)
     --stdout                            PNG bytes to stdout
   wait --text <regex>                 Block until the screen matches
-    --stable <ms>                       …or until the screen is unchanged this long
+    --stable <ms>                       ...or until the screen is unchanged this long
     --timeout <ms>                      Give up after N ms (default 30000, max 300000)
   type <text>                         Type literal text
     --enter                             Append Enter

@@ -30,7 +30,7 @@ const testToken = "test-token"
 // persistent --config flag the root command installs.
 //
 // cobra only folds a command's own persistent flags into cmd.Flags() while
-// parsing, and the endpoint tests call sessionEndpoint() directly instead of
+// parsing, and the endpoint tests call apiEndpoint() directly instead of
 // going through Execute, so parse an empty arg list to trigger the merge.
 func buildTestSessionCmd(t *testing.T, configPath string) *cobra.Command {
 	t.Helper()
@@ -214,8 +214,8 @@ func newStubServer(t *testing.T, sessions []session.StateDescription, hosts []ho
 	return s
 }
 
-func stubClient(ts *stubServer) *sessionClient {
-	return &sessionClient{base: ts.URL, token: testToken, http: ts.Client()}
+func stubClient(ts *stubServer) *apiClient {
+	return &apiClient{base: ts.URL, token: testToken, http: ts.Client()}
 }
 
 func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (string, error) {
@@ -242,9 +242,9 @@ func TestSessionEndpointFromConfigFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	base, token, err := sessionEndpoint(buildTestSessionCmd(t, configFile))
+	base, token, err := apiEndpoint(buildTestSessionCmd(t, configFile))
 	if err != nil {
-		t.Fatalf("sessionEndpoint: %s", err)
+		t.Fatalf("apiEndpoint: %s", err)
 	}
 	if want := "http://127.0.0.1:9999"; base != want {
 		t.Errorf("base = %q, want %q (0.0.0.0 must become 127.0.0.1)", base, want)
@@ -268,9 +268,9 @@ func TestSessionEndpointFlagsBeatConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	base, token, err := sessionEndpoint(cmd)
+	base, token, err := apiEndpoint(cmd)
 	if err != nil {
-		t.Fatalf("sessionEndpoint: %s", err)
+		t.Fatalf("apiEndpoint: %s", err)
 	}
 	if want := "https://example.test:1234"; base != want {
 		t.Errorf("base = %q, want %q (trailing slash trimmed)", base, want)
@@ -287,9 +287,9 @@ func TestSessionEndpointAddsSchemeAndHonoursEnvToken(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	base, token, err := sessionEndpoint(cmd)
+	base, token, err := apiEndpoint(cmd)
 	if err != nil {
-		t.Fatalf("sessionEndpoint: %s", err)
+		t.Fatalf("apiEndpoint: %s", err)
 	}
 	if want := "http://127.0.0.1:8041"; base != want {
 		t.Errorf("base = %q, want %q (scheme added)", base, want)
@@ -306,7 +306,7 @@ func TestSessionEndpointRequiresToken(t *testing.T) {
 	if err := cmd.PersistentFlags().Set("token-file", filepath.Join(t.TempDir(), "absent-token")); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := sessionEndpoint(cmd); err == nil {
+	if _, _, err := apiEndpoint(cmd); err == nil {
 		t.Error("want an error when no token can be found")
 	}
 }
@@ -320,7 +320,7 @@ func TestSessionEndpointRejectsRandomPort(t *testing.T) {
 	if err := cmd.PersistentFlags().Set("token", "t"); err != nil {
 		t.Fatal(err)
 	}
-	_, _, err := sessionEndpoint(cmd)
+	_, _, err := apiEndpoint(cmd)
 	if err == nil || !strings.Contains(err.Error(), "--server") {
 		t.Errorf("want a --server hint for --port 0, got %v", err)
 	}
@@ -381,6 +381,25 @@ func TestResolveSessionSingleAliveIsImplicit(t *testing.T) {
 	}
 	if got.ID != "aaaaaaaaaaaaaaaa" {
 		t.Errorf("resolved %s, want the only session", got.ID)
+	}
+}
+
+func TestResolveSessionNameMatchingIsCaseInsensitive(t *testing.T) {
+	// The built-in local server's record is named "Local" while every other
+	// surface calls it "local"; `-s local` must still find the session.
+	sessions := testSessions()[:1]
+	sessions[0].Spec.Name = "Local"
+	ts := newStubServer(t, sessions, nil)
+	cmd := buildTestSessionCmd(t, "")
+	if err := cmd.PersistentFlags().Set("session", "local"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := stubClient(ts).resolveSession(cmd)
+	if err != nil {
+		t.Fatalf("resolveSession(local): %s", err)
+	}
+	if got.ID != sessions[0].ID {
+		t.Errorf("resolved %s, want %s", got.ID, sessions[0].ID)
 	}
 }
 
