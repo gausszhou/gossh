@@ -41,6 +41,10 @@ func (server *Server) handleCreateHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	server.saveHostPassword(&req, &h)
+	// 新建主机自带启用的转发:直接交给后台看管拨号,不等第一次会话(Step B)
+	if len(h.Forwards) > 0 && !host.IsLocal(h.ID) {
+		server.forwardHosts.resume(h.ID, nil)
+	}
 	log.Printf("Host added: %s (%s@%s)", h.Name, h.User, h.Addr())
 	writeJSON(w, http.StatusCreated, h)
 }
