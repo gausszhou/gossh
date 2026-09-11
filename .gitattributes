@@ -1,0 +1,17 @@
+# 行尾策略:仓库内一律以 LF 存储,检出也为 LF。
+#
+# 背景:本仓长期 core.autocrlf=true 且没有 .gitattributes,工作区因此被检出为
+# CRLF;而 gofmt 只认 LF,`gofmt -l .` 于是把每一份本仓 .go 都误判成「需要格式化」
+# (实测 61 份全被列出)。索引里本来就存的是 LF(见 `git ls-files --eol`),所以这
+# 条只改变工作区的表示,不产生任何内容变更。
+* text=auto eol=lf
+
+# 二进制资源显式声明:与 git 的自动探测结果一致,写明只为意图清晰,
+# 避免日后把上面的 `* text=auto` 误读成「所有文件都会被做行尾转换」。
+*.png   binary
+*.gif   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary

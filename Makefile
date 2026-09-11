@@ -77,8 +77,14 @@ test: vet fmt
 vet:
 	CGO_ENABLED=0 go vet ./...
 
+# 只查本仓「跟踪的」Go 文件,而不是 gofmt -l .:仓库根下可能残留沙箱跑测试
+# 时落下的 Go 模块缓存(如 .workbuddy/gomodcache),它不是本仓源码,却会被
+# 递归扫进来并计入格式门禁。
+GOFMT_FILES := $(shell git ls-files '*.go')
+
 fmt:
-	@test -z "$$(gofmt -l .)" || (echo "gofmt errors:"; gofmt -l .; exit 1)
+	@test -n "$(GOFMT_FILES)" || (echo "no tracked Go files found"; exit 1)
+	@test -z "$$(gofmt -l $(GOFMT_FILES))" || (echo "gofmt errors:"; gofmt -l $(GOFMT_FILES); exit 1)
 
 clean:
 	rm -rf $(OUTPUT_DIR)
