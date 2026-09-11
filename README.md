@@ -33,7 +33,8 @@ the process.
   changed key refuses the connection
 - **Port forwards**: local / remote / dynamic (SOCKS5); host-level
   forwards run on a dedicated per-host forward connection, outliving any
-  interactive session (session close does not drop them, see
+  interactive session — they reconnect with exponential backoff and are
+  restored when the server restarts (see
   [ADR 0007](docs/adr/0007-host-forwards-resident.md))
 - **Local server**: the first row of the host list is a built-in entry
   (127.0.0.1) that opens a terminal on the machine running gossh — a local
@@ -152,11 +153,12 @@ gossh version
 keyring. A `--secret` value typed inline is visible in the process list.
 
 Resident port forwards (configured on the host record, applied by the host's
-own forward connection — they outlive any session, see
+own forward connection — they outlive any session, reconnect on their own and
+recover when the server restarts, see
 [ADR 0007](docs/adr/0007-host-forwards-resident.md)):
 
 ```sh
-gossh hosts forwards ls   prod                  # config + runtime status (running/pending/failed)
+gossh hosts forwards ls   prod                  # config + runtime status (running/pending/failed/disabled)
 gossh hosts forwards add  prod --kind local --bind 127.0.0.1:8080 --target localhost:80
 gossh hosts forwards rm   prod --bind 127.0.0.1:8080
 ```

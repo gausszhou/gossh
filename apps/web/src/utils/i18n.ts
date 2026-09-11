@@ -108,11 +108,17 @@ const messages: Record<Lang, Record<string, string>> = {
         'fwd.listTitle': '当前转发',
         'fwd.addFailed': '添加失败',
         'fwd.required': '填写绑定地址(以及目标)',
-        // ── 主机级端口转发(持久定义,连上即生效) ──
+        // ── 主机级端口转发(常驻,独立连接承载,断线自愈) ──
         'hostForwards.title': '主机端口转发',
-        'hostForwards.listTitle': '连接时自动应用',
-        'hostForwards.hint': '保存后,每次连接该主机自动生效;单个转发失败不阻断连接。',
+        'hostForwards.listTitle': '常驻转发',
+        'hostForwards.hint': '由服务端独立连接承载,不随终端页签关闭;断线自动重连,服务重启自动恢复。',
         'hostForwards.saveFailed': '保存失败',
+        'hostForwards.status.running': '运行中',
+        'hostForwards.status.pending': '待建立',
+        'hostForwards.status.failed': '失败',
+        'hostForwards.status.disabled': '已停用',
+        'hostForwards.enable': '启用这条转发',
+        'hostForwards.disable': '停用这条转发',
         // ── 设置 ──
         'settings.open': '打开设置',
         'settings.title': '设置',
@@ -235,11 +241,17 @@ const messages: Record<Lang, Record<string, string>> = {
         'fwd.listTitle': 'Active forwards',
         'fwd.addFailed': 'Failed to add',
         'fwd.required': 'Fill in the bind address (and target)',
-        // ── Host-level port forwards (persistent, applied on connect) ──
+        // ── Host-level port forwards (resident on a dedicated connection) ──
         'hostForwards.title': 'Host port forwards',
-        'hostForwards.listTitle': 'Applied automatically on connect',
-        'hostForwards.hint': 'Applied every time you connect to this host; a failing forward does not block the connection.',
+        'hostForwards.listTitle': 'Resident forwards',
+        'hostForwards.hint': 'Carried by a dedicated server-side connection: they survive tab close, reconnect automatically, and recover when the server restarts.',
         'hostForwards.saveFailed': 'Failed to save',
+        'hostForwards.status.running': 'Running',
+        'hostForwards.status.pending': 'Pending',
+        'hostForwards.status.failed': 'Failed',
+        'hostForwards.status.disabled': 'Disabled',
+        'hostForwards.enable': 'Enable this forward',
+        'hostForwards.disable': 'Disable this forward',
         // ── Settings ──
         'settings.open': 'Open settings',
         'settings.title': 'Settings',

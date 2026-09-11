@@ -6,7 +6,7 @@
 // 服务端只按 id 提供:创建(幂等/复活)、详情、状态批量查询、销毁。
 import { logger } from './logger'
 import type {
-    Host, KnownHost, StateDescription, ForwardEntry,
+    Host, KnownHost, StateDescription, ForwardEntry, HostForwardStatus,
 } from './types'
 
 const TOKEN_KEY = 'gossh.token'
@@ -270,6 +270,13 @@ export async function deleteForward(sessionId: string, forwardId: string): Promi
     await fetchRaw(`/api/sessions/${encodeURIComponent(sessionId)}/forwards/${encodeURIComponent(forwardId)}`, {
         method: 'DELETE',
     })
+}
+
+// ── 端口转发(主机常驻,ADR-0007) ──
+
+// listHostForwardStatus 拉取主机常驻转发的运行时状态(running/pending/failed/disabled)。
+export async function listHostForwardStatus(hostId: string): Promise<HostForwardStatus[]> {
+    return fetchJSON<HostForwardStatus[]>(`/api/hosts/${encodeURIComponent(hostId)}/forwards`)
 }
 
 // ── 部署级页面标题 ──

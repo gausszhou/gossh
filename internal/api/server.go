@@ -100,6 +100,13 @@ func New(manager *session.Manager, options *Options, inventory *host.Inventory, 
 			}
 			return h.Forwards
 		},
+		func() []string {
+			out := make([]string, 0)
+			for _, h := range server.inventory.List() {
+				out = append(out, h.ID)
+			}
+			return out
+		},
 	)
 	manager.WithTerminalFactory(server.dialFactory)
 	return server, nil
@@ -193,6 +200,10 @@ func (server *Server) Run(ctx context.Context, options ...RunOption) error {
 	}
 
 	server.manager.Start(ctx)
+
+	// 服务启动即恢复主机级转发(ADR-0007 Step B):后台看管逐台拨号,
+	// 无头凭据的主机直接就绪;仅浏览器密码的主机保持 pending 等首会话。
+	server.forwardHosts.resumeAll()
 
 	srv := &http.Server{Handler: server.setupHandlers()}
 

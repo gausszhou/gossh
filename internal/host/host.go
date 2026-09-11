@@ -89,7 +89,13 @@ type Forward struct {
 	Kind   string `json:"kind"`             // "local" | "remote" | "dynamic"
 	Bind   string `json:"bind"`             // e.g. "127.0.0.1:8080"
 	Target string `json:"target,omitempty"` // e.g. "localhost:80"; empty for dynamic
+	// Enabled 缺省(nil)视作启用,向后兼容没有该字段的旧 hosts.json;
+	// 用指针是为了区分「未写」与「显式 false」。
+	Enabled *bool `json:"enabled,omitempty"`
 }
+
+// IsEnabled reports whether the forward should be applied (nil = enabled).
+func (f Forward) IsEnabled() bool { return f.Enabled == nil || *f.Enabled }
 
 // Host is one host inventory record (CONTEXT.md → 主机).
 type Host struct {

@@ -148,14 +148,14 @@ func TestShellArgs(t *testing.T) {
 		bashArgs = []string{"--login", "-i"}
 	}
 	cases := map[string][]string{
-		"pwsh":                                            {"-NoLogo"},
-		"pwsh.exe":                                        {"-NoLogo"},
-		`C:\Program Files\PowerShell\7\pwsh.exe`:           {"-NoLogo"},
-		`C:\Windows\System32\cmd.exe`:                      nil,
-		`C:\Program Files\Git\bin\bash.exe`:                bashArgs,
-		`C:\Program Files\Git\usr\bin\bash.exe`:            bashArgs,
-		"/bin/bash":                                        bashArgs,
-		"/bin/sh":                                          nil,
+		"pwsh":                                   {"-NoLogo"},
+		"pwsh.exe":                               {"-NoLogo"},
+		`C:\Program Files\PowerShell\7\pwsh.exe`: {"-NoLogo"},
+		`C:\Windows\System32\cmd.exe`:            nil,
+		`C:\Program Files\Git\bin\bash.exe`:      bashArgs,
+		`C:\Program Files\Git\usr\bin\bash.exe`:  bashArgs,
+		"/bin/bash":                              bashArgs,
+		"/bin/sh":                                nil,
 	}
 	for shell, want := range cases {
 		got := shellArgs(shell)
