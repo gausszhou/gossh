@@ -26,8 +26,8 @@ gossh serve
   无 keyring 守护进程时自动回退为内存保存
 - **主机密钥**:TOFU 信任管理(`~/.gossh/known_hosts`),指纹变更即拒绝连接
 - **端口转发**:local / remote / dynamic(SOCKS5);主机级转发跑在主机专属的
-  转发连接上,**不随会话生灭**——关终端页签/销毁会话转发仍在
-  (见 [ADR 0007](docs/adr/0007-host-forwards-resident.md))
+  转发连接上,**不随会话生灭**——关终端页签/销毁会话转发仍在,断线自动
+  重连,服务重启自动恢复(见 [ADR 0007](docs/adr/0007-host-forwards-resident.md))
 - **本地服务器**:主机清单首位的常驻条目(127.0.0.1),连接即在运行 gossh 的
   机器上开一个本地终端——本机 PTY,不经 SSH、无需凭据;只能连接,不可编辑/
   转发/删除(见 [ADR 0008](docs/adr/0008-local-server.md))
@@ -127,10 +127,10 @@ gossh version
 值会出现在进程列表里。
 
 主机级常驻端口转发(配置写在主机记录上,由主机自己的转发连接承载——不随会话
-生灭,见 [ADR 0007](docs/adr/0007-host-forwards-resident.md)):
+生灭;断线自动重连,服务重启自动恢复,见 [ADR 0007](docs/adr/0007-host-forwards-resident.md)):
 
 ```sh
-gossh hosts forwards ls   prod                  # 配置 + 运行状态(running/pending/failed)
+gossh hosts forwards ls   prod                  # 配置 + 运行状态(running/pending/failed/disabled)
 gossh hosts forwards add  prod --kind local --bind 127.0.0.1:8080 --target localhost:80
 gossh hosts forwards rm   prod --bind 127.0.0.1:8080
 ```
