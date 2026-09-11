@@ -66,6 +66,20 @@
             <div v-for="f in forwards" :key="f._k" class="hf-item">
               <span class="hf-item-kind" :class="'kind-' + f.kind">{{ f.kind }}</span>
               <span class="hf-item-spec">{{ f.bind }}<template v-if="f.target"> → {{ f.target }}</template></span>
+              <span
+                class="hf-item-status"
+                :class="'st-' + statusOf(f)"
+                :title="statusOf(f) === 'failed' ? (errorOf(f) || t('hostForwards.status.failed')) : ''"
+              >{{ t('hostForwards.status.' + statusOf(f)) }}</span>
+              <label class="hf-item-toggle" :title="f.enabled === false ? t('hostForwards.enable') : t('hostForwards.disable')">
+                <input
+                  type="checkbox"
+                  :checked="f.enabled !== false"
+                  :disabled="busy"
+                  @change="toggle(f)"
+                />
+                <span class="hf-toggle-track"><span class="hf-toggle-thumb"></span></span>
+              </label>
               <button class="hf-item-del" :title="t('common.delete')" @click="remove(f._k)">✕</button>
             </div>
           </div>
@@ -81,11 +95,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { updateHost } from '../utils/api'
+import { onMounted, onUnmounted, ref } from 'vue'
+import { listHostForwardStatus, updateHost } from '../utils/api'
 import { t } from '../utils/i18n'
 import { logger } from '../utils/logger'
-import type { Host, HostForward } from '../utils/types'
+import type { Host, HostForward, HostForwardStatus } from '../utils/types'
 
 const props = defineProps<{
     host: Host
@@ -112,6 +126,46 @@ const target = ref('')
 const busy = ref(false)
 const formError = ref('')
 
+// 运行时状态:打开期间轮询(常驻转发由服务端独立连接承载,ADR-0007 Step B)
+const statuses = ref<HostForwardStatus[]>([])
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+function rowKey(kindV: string, bindV: string, targetV?: string): string {
+    return `${kindV}|${bindV}|${targetV || ''}`
+}
+
+function statusOf(f: ForwardRow): string {
+    if (f.enabled === false) return 'disabled'
+    const st = statuses.value.find((s) => rowKey(s.kind, s.bind, s.target) === rowKey(f.kind, f.bind, f.target))
+    return st?.status || 'pending'
+}
+
+function errorOf(f: ForwardRow): string {
+    const st = statuses.value.find((s) => rowKey(s.kind, s.bind, s.target) === rowKey(f.kind, f.bind, f.target))
+    return st?.error || ''
+}
+
+async function pollStatus() {
+    try {
+        statuses.value = await listHostForwardStatus(props.host.id)
+    } catch {
+        // 状态拉取失败不打扰用户,下一轮再试
+    }
+}
+
+onMounted(() => {
+    pollStatus()
+    pollTimer = setInterval(pollStatus, 5000)
+})
+
+onUnmounted(() => {
+    if (pollTimer !== null) clearInterval(pollTimer)
+})
+
+function toggle(f: ForwardRow) {
+    f.enabled = f.enabled === false // 当前停用 → 启用
+}
+
 function add() {
     const b = bind.value.trim()
     const tgt = target.value.trim()
@@ -124,6 +178,7 @@ function add() {
         kind: kind.value,
         bind: b,
         ...(kind.value === 'dynamic' ? {} : { target: tgt }),
+        enabled: true,
     })
     bind.value = ''
     target.value = ''
@@ -145,6 +200,7 @@ async function save() {
             kind: f.kind,
             bind: f.bind,
             ...(f.target ? { target: f.target } : {}),
+            enabled: f.enabled !== false,
         }))
         await updateHost({ ...props.host, forwards: clean })
         logger.info('host', 'saved host forwards host=%s count=%d', props.host.id, clean.length)
@@ -380,6 +436,87 @@ function close() {
     cursor: pointer;
     padding: 2px 5px;
     border-radius: var(--radius-md);
+}
+
+.hf-item-status {
+    flex: 0 0 auto;
+    font-size: 10px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--border-input);
+    color: var(--fg-muted);
+}
+
+.st-running {
+    color: var(--net-good);
+    border-color: var(--net-good);
+}
+
+.st-pending {
+    color: var(--fg-muted);
+}
+
+.st-failed {
+    color: var(--net-bad);
+    border-color: var(--net-bad);
+    cursor: help;
+}
+
+.st-disabled {
+    color: var(--fg-hint);
+    opacity: 0.8;
+}
+
+.hf-item-toggle {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.hf-item-toggle input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.hf-toggle-track {
+    display: inline-block;
+    width: 26px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+    position: relative;
+    transition: background 0.15s ease;
+}
+
+.hf-toggle-thumb {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--fg-dim);
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.hf-item-toggle input:checked + .hf-toggle-track {
+    background: var(--net-good, var(--bg-input));
+    border-color: var(--net-good);
+}
+
+.hf-item-toggle input:checked + .hf-toggle-track .hf-toggle-thumb {
+    transform: translateX(12px);
+    background: var(--bg-dialog);
+}
+
+.hf-item-toggle input:disabled + .hf-toggle-track {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .hf-item-del:hover {

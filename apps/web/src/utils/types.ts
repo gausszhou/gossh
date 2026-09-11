@@ -33,6 +33,17 @@ export interface HostForward {
     kind: string // 'local' | 'remote' | 'dynamic'
     bind: string
     target?: string
+    enabled?: boolean // 缺省视作 true(与后端 nil 语义一致)
+}
+
+// GET /api/hosts/{id}/forwards 的单条记录(配置 + 运行时状态)。
+export interface HostForwardStatus {
+    id?: string // 运行中的转发条目 id,其余状态为空
+    kind: string
+    bind: string
+    target?: string
+    status: 'running' | 'pending' | 'failed' | 'disabled'
+    error?: string
 }
 
 // GET /api/hosts 的单条记录。
