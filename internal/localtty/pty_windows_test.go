@@ -145,6 +145,28 @@ func openHandleCount(t *testing.T) uint32 {
 	return count
 }
 
+// settledHandleCount 采样当前进程的句柄总数,并在短暂窗口内等它稳定下来。
+//
+// 为什么不能只读一次:同一个测试进程里先跑过的测试(TestTtyRunsShellAndResizes
+// 等)会真起 shell,它们的进程/伪控制台句柄由系统异步释放,可能在某一轮采样时
+// 恰好被计入,表现为一次性的跳变(实测会在某一轮突然跳 +6/+12,位置不固定)。
+// 真实泄漏的特征是「每轮都稳定增长」,与这种一次性抖动完全不同。连续两次读数
+// 一致即认为已稳定;若一直在涨(真泄漏)则等满窗口后返回,增量照样会被断言抓到。
+func settledHandleCount(t *testing.T) uint32 {
+	t.Helper()
+	prev := openHandleCount(t)
+	deadline := time.Now().Add(1500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+		now := openHandleCount(t)
+		if now == prev {
+			return now
+		}
+		prev = now
+	}
+	return prev
+}
+
 // runTestShell 跑完一次 echo 会话:等退出、读干净输出、关掉句柄。
 func runTestShell(t *testing.T) {
 	t.Helper()
@@ -158,24 +180,44 @@ func runTestShell(t *testing.T) {
 
 // TestWindowsPTYNoHandleLeak 反复建/关会话:Close 若漏掉伪控制台或进程
 // 句柄,句柄数会随轮次线性增长(每轮至少漏三个),一眼就能看出来。
+//
+// 判据是「增长是否持续」,而不是首尾总量的差值。实测:句柄总数会在某一轮
+// 一次性跳 +6/+12 并保持(单独复现时分别落在第 3 轮、第 0 轮或不出现),
+// 这不是 Close 漏句柄——真漏的话每一轮都会漏——而是同进程里其它测试真起
+// shell 后的异步回收、runtime/DLL 惰性分配之类的一次性事件。只看首尾总量
+// 会把这 +6 误判成泄漏(这正是本用例此前 flaky 的原因),所以改为:只有
+// **多数轮次**都在增长才判泄漏。
 func TestWindowsPTYNoHandleLeak(t *testing.T) {
-	const rounds = 5
+	const (
+		rounds = 6
+		// 单轮容差:留一点运行时噪声的余量;真实泄漏是每轮 3 个以上的量级
+		// (伪控制台 + 进程 + 管道句柄)。
+		maxPerRoundGrowth = 2
+	)
 
 	// 先跑一轮预热:运行时 IOCP、惰性 DLL、Go 测试框架自己的一次性句柄
 	// 都会在第一次会话时长出来,不能算到泄漏头上(实测预热后每轮增量为 0)。
 	runTestShell(t)
 
-	before := openHandleCount(t)
+	before := settledHandleCount(t)
+	prev := before
+	grownRounds := 0
 	for i := 0; i < rounds; i++ {
 		runTestShell(t)
-		if n := openHandleCount(t); i >= 0 {
-			t.Logf("handles after round %d: %d (delta %d)", i, n, int(n)-int(before))
+		now := settledHandleCount(t)
+		delta := int(now) - int(prev)
+		t.Logf("handles after round %d: %d (delta %+d vs previous round, %+d vs baseline)",
+			i, now, delta, int(now)-int(before))
+		if delta > maxPerRoundGrowth {
+			grownRounds++
 		}
+		prev = now
 	}
-	after := openHandleCount(t)
-	// 留一点运行时噪声的余量;真实泄漏是每轮数个的量级。
-	if grown := int(after) - int(before); grown > 2 {
-		t.Fatalf("handle count grew by %d over %d sessions (%d → %d); Close leaks handles", grown, rounds, before, after)
+
+	// Close 真漏则每轮都漏,多数轮次都会超容差;一次性跳变只影响一轮。
+	if grownRounds*2 >= rounds {
+		t.Fatalf("handle count grew in %d of %d rounds (%d → %d); Close leaks handles",
+			grownRounds, rounds, before, prev)
 	}
 }
 
