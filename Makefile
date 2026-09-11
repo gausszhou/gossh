@@ -4,13 +4,6 @@ GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null | cut -c1-7)
 VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 2.0.0)
 LDFLAGS    := -X github.com/gausszhou/gossh/cmd.Version=$(VERSION) -X github.com/gausszhou/gossh/cmd.CommitID=$(GIT_COMMIT)
 
-# 特性编译开关(默认关闭,=1 启用):
-#   SFTP —— 文件传输(Go -tags sftp / 前端 VITE_ENABLE_SFTP=1)
-# 默认构建保持精简:不编入 pkg/sftp;前端同步隐藏对应 UI。
-SFTP ?= 0
-SFTP_TAGS := $(if $(filter 1,$(SFTP)),-tags sftp,)
-VITE_ENABLE_SFTP := $(if $(filter 1,$(SFTP)),1,0)
-
 # 构建矩阵:资产命名 gossh-{os}-{arch}[.exe],与 install.sh / self update 的
 # 映射保持一致;windows 输出 .exe。压缩交给 tar.gz 打包(gzip 对未压缩
 # 二进制有效;不再使用 UPX——已压过的资产再 gzip 无收益,且 UPX 会破坏
@@ -26,7 +19,7 @@ all: frontend static release
 
 build: frontend static
 	@mkdir -p $(OUTPUT_DIR)
-	CGO_ENABLED=0 go build -trimpath $(SFTP_TAGS) -ldflags "$(LDFLAGS) -s -w" -o $(OUTPUT_DIR)/gossh .
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS) -s -w" -o $(OUTPUT_DIR)/gossh .
 
 # release 产出:5 平台原始二进制 + 各平台 tar.gz 压缩包(博客与脚本都发布,
 # 压缩包供 install.sh 下载,体积小、网络友好;原始二进制供手动下载)。
@@ -40,7 +33,6 @@ release: frontend static
 		out=$(OUTPUT_DIR)/gossh-$$os-$$arch$$ext; \
 		echo "Building $$os/$$arch..."; \
 		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -trimpath \
-			$(SFTP_TAGS) \
 			-ldflags "$(LDFLAGS) -s -w" \
 			-o $$out .; \
 		echo "Packing gossh-$$os-$$arch$$ext.tar.gz..."; \
@@ -61,9 +53,8 @@ install:
 	pnpm install
 
 # Build frontend: Vite + Vue 3 + xterm.js v5 + WebGL (apps/web)
-# VITE_ENABLE_SFTP 编译期决定对应 UI(与后端特性开关同源)
 frontend:
-	VITE_ENABLE_SFTP=$(VITE_ENABLE_SFTP) pnpm --filter gotty-frontend build
+	pnpm --filter gotty-frontend build
 
 # docs removed (VitePress site) — see README.md
 

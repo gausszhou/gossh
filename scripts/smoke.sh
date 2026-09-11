@@ -48,16 +48,7 @@ curl -s -X POST "$API/api/sessions" "${H[@]}" \
 sleep 0.5
 curl -s "$API/api/sessions/$SESSION/screen?format=text" "${H[@]}" | grep -q .   # 非空(MOTD/prompt)
 
-echo "== 4. SFTP over the session =="
-# SFTP 默认不编译进二进制(-tags sftp 才有);端点 404 则跳过该步骤
-if curl -s -o /dev/null -w '%{http_code}' "$API/api/sessions/$SESSION/sftp/ls?path=/tmp" "${H[@]}" | grep -q 200; then
-  curl -s "$API/api/sessions/$SESSION/sftp/ls?path=/tmp" "${H[@]}" | python3 -c 'import json,sys; assert isinstance(json.load(sys.stdin), list)'
-  echo "   (sftp 已编译,已验证)"
-else
-  echo "   (sftp 未编译进二进制,跳过)"
-fi
-
-echo "== 5. local port forward =="
+echo "== 4. local port forward =="
 FID=$(curl -s -X POST "$API/api/sessions/$SESSION/forwards" "${H[@]}" \
   -d '{"kind":"local","bind":"127.0.0.1:18099","target":"localhost:22"}' \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
@@ -96,7 +87,7 @@ curl -s -X POST "$API/api/sessions" "${H[@]}" -d "{\"id\":\"$SESSION\"}" | grep 
 echo "== 9. known-hosts manage =="
 curl -s "$API/api/known-hosts" "${H[@]}" | grep -q "127.0.0.1:22"
 
-echo "== 10. clean up session =="
+echo "== 9. clean up session =="
 curl -s -o /dev/null -w '%{http_code}' -X DELETE "$API/api/sessions/$SESSION" "${H[@]}" | grep -q 204
 
 echo

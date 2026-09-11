@@ -14,7 +14,7 @@
 - **预留 id `local`**:用户主机 id 恒为 `h_<nanos>_<suffix>`,不会与之冲突。
 - **会话工厂按 spec 分派**:`api.dialFactory` 见到 `host.IsLocal(spec.HostID)` 走 `localtty.New`(本机 PTY),否则走原 SSH 链路。`session.Terminal` 接口不变,因此会话管理器、WS 附着、屏幕镜像与 agent 读屏 API 全部复用。
 - **本地 PTY 自己实现,不加依赖**:Unix 走 `/dev/ptmx` + `TIOCSPTLCK`/`TIOCGPTN`(Linux)或 `TIOCPTYGRANT`/`TIOCPTYUNLK`/`TIOCPTYGNAME`(Darwin),Windows 走 ConPTY(`golang.org/x/sys/windows` 已提供 `CreatePseudoConsole`/`ResizePseudoConsole`)。shell 取 `GOSSH_LOCAL_SHELL`,否则 Windows 依次尝试 `pwsh.exe`/`powershell.exe`/`%COMSPEC%`,Unix 取 `$SHELL`/`/bin/sh`。
-- **转发与凭据链路显式跳过**:会话建立时不 `ensure` 主机级转发;`dialHostForward` 对本地 id 直接报错;本地终端不实现 `SSHClient()`,会话级转发/SFTP 因此拿到「session has no ssh connection」而不是 panic。
+- **转发与凭据链路显式跳过**:会话建立时不 `ensure` 主机级转发;`dialHostForward` 对本地 id 直接报错;本地终端不实现 `SSHClient()`,会话级转发因此拿到「session has no ssh connection」而不是 panic。
 - **重启后照旧复活**:本地会话与 SSH 会话一样记 `Metadata.Spec`(hostId=`local`),浏览器重连/服务重启后按同一 spec 重建,起一个新的本地 shell。
 
 ## 理由
@@ -27,7 +27,7 @@
 
 - **本地命令执行面**:持有访问令牌者可经浏览器在本机执行任意命令。默认仅监听 `127.0.0.1` + 随机令牌(ADR-0005)是唯一屏障;暴露到网络必须自行加 TLS 反代与 `--ws-origin`,并在文档中明确(见 README 安全模型)。
 - Windows 上 `Signal` 无 POSIX 语义:终止类信号(SIGHUP/SIGINT/SIGTERM/SIGKILL)映射为 `TerminateProcess`,其他信号为 no-op。
-- 会话级端口转发、SFTP 对本地会话不可用(无 SSH 连接),API 返回明确的错误信息而非静默失败。
+- 会话级端口转发对本地会话不可用(无 SSH 连接),API 返回明确的错误信息而非静默失败。
 
 ## 备选
 

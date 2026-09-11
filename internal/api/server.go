@@ -327,9 +327,6 @@ func (server *Server) setupHandlers() http.Handler {
 	apiMux.HandleFunc("POST /api/secrets", server.handleSetSecret)
 	apiMux.HandleFunc("DELETE /api/secrets", server.handleDeleteSecret)
 
-	// REST API — session-scoped SFTP (同一会话连接;默认构建不含,SFTP=1 开启)
-	server.registerSFTPRoutes(apiMux)
-
 	// REST API — session-scoped port forwards
 	apiMux.HandleFunc("GET /api/sessions/{id}/forwards", server.handleListForwards)
 	apiMux.HandleFunc("POST /api/sessions/{id}/forwards", server.handleAddForward)

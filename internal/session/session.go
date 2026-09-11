@@ -404,8 +404,8 @@ type StateDescription struct {
 func (s *Session) Spec() ConnectSpec { return s.spec }
 
 // SSHClient exposes the session's underlying ssh connection to the api
-// layer so SFTP and port forwards share the same chain. Returns an error
-// when the terminal implementation does not expose one.
+// layer so session-scoped port forwards share the same chain. Returns an
+// error when the terminal implementation does not expose one.
 func (s *Session) SSHClient() (*ssh.Client, error) {
 	type clienter interface {
 		SSHClient() *ssh.Client

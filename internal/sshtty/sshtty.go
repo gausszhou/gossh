@@ -244,7 +244,7 @@ func (t *Tty) WindowTitleVariables() map[string]interface{} {
 }
 
 // SSHClient exposes the underlying target client so the same connection
-// can host SFTP sessions and port forwards (session-scoped).
+// can host session-scoped port forwards.
 func (t *Tty) SSHClient() *ssh.Client { return t.conn.Target }
 
 // signalToSSH maps a syscall.Signal to the ssh signal name.
