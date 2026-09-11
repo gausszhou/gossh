@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -272,12 +271,24 @@ func resolveShell() (string, []string) {
 // shellArgs returns the arguments a shell needs to start interactive
 // without printing a startup banner.
 func shellArgs(shell string) []string {
-	switch strings.ToLower(strings.TrimSuffix(filepath.Base(shell), ".exe")) {
+	switch strings.TrimSuffix(strings.ToLower(shellBase(shell)), ".exe") {
 	case "pwsh", "powershell":
 		return []string{"-NoLogo"}
 	default:
 		return nil
 	}
+}
+
+// shellBase returns the executable name of shell without its directory.
+// Both separators are handled instead of filepath.Base: the PowerShell
+// detection must work for Windows-style paths on every platform (the
+// test table covers `C:\...\pwsh.exe` while CI runs on Linux, where
+// filepath.Base only splits on "/").
+func shellBase(shell string) string {
+	if i := strings.LastIndexAny(shell, `/\`); i >= 0 {
+		return shell[i+1:]
+	}
+	return shell
 }
 
 // startDir is where the local shell starts: the user's home directory
