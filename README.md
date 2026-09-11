@@ -127,6 +127,8 @@ gossh app --no-browser # enter the tray without opening the browser (used by aut
 
 ### CLI
 
+Host inventory:
+
 ```sh
 gossh hosts add --name prod --address 10.0.0.5 --user root --key ~/.ssh/id_ed25519
 gossh hosts add --name bastion --address 1.2.3.4 --user ops
@@ -134,6 +136,60 @@ gossh hosts list
 gossh hosts rm prod
 gossh version
 ```
+
+#### Driving sessions (`gossh session`)
+
+`gossh session` is the command-line face of the [agent-driving API](docs/design/agent-driving-api.md)
+(`GET /screen`, `POST /wait`, `POST /keys`). It is a **stateless, one-shot
+HTTP client** — the sessions live in a server you already have running
+(`gossh serve` / `gossh app`), and the CLI never opens a PTY of its own. The
+design follows [terminal-use](https://github.com/flipbit03/terminal-use):
+`--session` targeting, named keys, and "human text on a TTY, JSON when piped".
+
+```sh
+gossh session ls                          # sessions on the running server
+gossh session create --host prod          # connect a host, print the id
+gossh session type "ls -la" --enter       # type text (--enter submits it)
+gossh session wait --text 'password:'     # block until the screen matches
+gossh session screen                      # read the rendered screen
+gossh session screen --png -o shot.png    # render a PNG
+gossh session press Ctrl+C                # send named keys
+gossh session press Escape : w q Enter    # …as one sequence
+gossh session destroy                     # alias: kill
+gossh session usage                       # one-screen reference
+```
+
+- **Targeting.** `-s/--session` takes a full id, a unique id prefix, or a
+  title/host name. Omit it and the only live session is used; with several
+  live sessions the CLI lists them and asks you to pick.
+- **Output.** On a TTY you get a human table / plain text; piped or redirected
+  you get JSON, so an agent gets structured output for free. `--json` forces
+  either mode (`screen --png` is the one exception — an image has no JSON form).
+- **Named keys.** `type` sends literal text; `press` sends named keys —
+  `Enter`, `Tab`, `Escape`, arrows, `PageUp`/`PageDown`, `F1`–`F12`, modifiers
+  (`Ctrl+C`, `Alt+f`, `Shift+Tab`, `Ctrl+Shift+Up`) and any single character.
+  The server takes **raw bytes** on purpose (no key-name translation), so the
+  client does the mapping.
+- **Prerequisites.** Reading a screen needs the server's screen mirror
+  (`--mirror`, on by default); writing needs `--permit-write` (also on by
+  default). A read-only deployment answers writes with 403 and the CLI says so.
+- **Address & token** come from the same config file `gossh serve` reads
+  (default `~/.gossh/config.json`), so a stock setup needs no flags;
+  `--server` / `--token` (or `GOSSH_SERVER` / `GOSSH_TOKEN`) override it.
+
+A typical agent drive loop:
+
+```sh
+id=$(gossh session create --host prod --json | jq -r .id)
+gossh session wait   -s "$id" --text 'login:' --timeout 20000
+gossh session type   -s "$id" 'deploy' --enter
+gossh session wait   -s "$id" --stable 2000
+gossh session screen -s "$id"
+gossh session destroy -s "$id"
+```
+
+See the [agent-driving API reference](docs/design/agent-driving-api.md) for the
+HTTP contract the CLI wraps.
 
 ## Security model
 
@@ -168,7 +224,7 @@ apps/web            Vue3 + Vite + xterm.js (tabs / host inventory)
 ```
 
 See `docs/adr/` (0001–0008), `CONTEXT.md` (domain glossary) and
-`docs/design/vscode-style-ui-guide.md` (UI style guide).
+`docs/design/` (agent-driving API, WebSocket multiplexing, UI style guide).
 
 ## Development
 

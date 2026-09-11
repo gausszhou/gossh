@@ -104,6 +104,8 @@ gossh app --no-browser # 只进托盘不弹浏览器(开机自启条目用这个
 
 ### CLI
 
+主机清单:
+
 ```sh
 gossh hosts add --name prod --address 10.0.0.5 --user root --key ~/.ssh/id_ed25519
 gossh hosts add --name bastion --address 1.2.3.4 --user ops
@@ -111,6 +113,57 @@ gossh hosts list
 gossh hosts rm prod
 gossh version
 ```
+
+#### 驱动会话(`gossh session`)
+
+`gossh session` 是 [Agent 驱动接口](docs/design/agent-driving-api.md)
+(`GET /screen`、`POST /wait`、`POST /keys`)的命令行入口。它是一个**无状态、
+一次性**的 HTTP 客户端——会话住在你已经跑起来的服务端(`gossh serve` /
+`gossh app`)里,CLI 自己不开 PTY。设计参考
+[terminal-use](https://github.com/flipbit03/terminal-use):`--session` 定位会话、
+命名键、以及「TTY 出人读文本、管道出 JSON」。
+
+```sh
+gossh session ls                          # 列出运行中服务端的会话
+gossh session create --host prod          # 连一台主机,打印会话 id
+gossh session type "ls -la" --enter       # 输入文本(--enter 回车提交)
+gossh session wait --text 'password:'     # 阻塞直到屏幕匹配
+gossh session screen                      # 读取当前渲染的屏幕
+gossh session screen --png -o shot.png    # 渲染成 PNG
+gossh session press Ctrl+C                # 发送命名键
+gossh session press Escape : w q Enter    # 作为一整段序列发送
+gossh session destroy                     # 别名:kill
+gossh session usage                       # 一屏完整参考
+```
+
+- **定位会话。** `-s/--session` 接受完整 id、唯一 id 前缀或标题/主机名。
+  省略时默认作用于唯一存活的会话;若有多个存活会话,CLI 会列出并提示指定。
+- **输出约定。** 在 TTY 上是人读的表格/纯文本;被管道或重定向时输出 JSON,
+  agent 无需额外参数即可获得结构化结果。`--json` 可强制任一模式
+  (`screen --png` 是唯一例外——图像没有 JSON 形态)。
+- **命名键。** `type` 发送字面文本;`press` 发送命名键——`Enter`、`Tab`、
+  `Escape`、方向键、`PageUp`/`PageDown`、`F1`–`F12`、修饰组合(`Ctrl+C`、
+  `Alt+f`、`Shift+Tab`、`Ctrl+Shift+Up`)以及任意单字符。服务端刻意只收
+  **原始字节**(不做键名翻译),映射放在客户端。
+- **前提。** 读屏需要服务端的屏幕镜像(`--mirror`,默认开);写入需要
+  `--permit-write`(同样默认开)。只读部署会以 403 拒绝写入,CLI 会给出提示。
+- **地址与令牌**取自 `gossh serve` 读的同一份配置文件(默认
+  `~/.gossh/config.json`),因此默认安装无需任何参数;`--server` / `--token`
+  (或 `GOSSH_SERVER` / `GOSSH_TOKEN`)可覆盖。
+
+典型的 Agent 驱动循环:
+
+```sh
+id=$(gossh session create --host prod --json | jq -r .id)
+gossh session wait    -s "$id" --text 'login:' --timeout 20000
+gossh session type    -s "$id" 'deploy' --enter
+gossh session wait    -s "$id" --stable 2000
+gossh session screen  -s "$id"
+gossh session destroy -s "$id"
+```
+
+CLI 背后封装的 HTTP 契约见
+[Agent 驱动接口参考](docs/design/agent-driving-api.md)。
 
 ## 安全模型
 
@@ -137,7 +190,7 @@ apps/web            Vue3 + Vite + xterm.js(页签/主机列表)
 ```
 
 详见 `docs/adr/`(0001-0008)、`CONTEXT.md`(领域术语)与
-`docs/design/vscode-style-ui-guide.md`(UI 样式指导)。
+`docs/design/`(Agent 驱动接口、WebSocket 多路复用、UI 样式指导)。
 
 ## 开发
 
