@@ -43,7 +43,10 @@ release: frontend static
 	@echo "Release assets:"; ls -la $(OUTPUT_DIR)
 
 # 桌面形态(Linux AppImage):需要 cgo(GTK/AppIndicator)与 appimagetool
-# (见 scripts/build-appimage.sh)。CI 在 release 时对 amd64/arm64 各跑一次。
+# (见 scripts/build-appimage.sh)。release CI 只构建 amd64——arm64 需要交叉
+# 工具链(目标架构 GTK 头 + 交叉 gcc/pkg-config),已暂缓(见 ADR-0006 与
+# release.yml 注释)。本 target 两个架构都试,因此 arm64 只在具备交叉工具链
+# 的机器上能通过;CI 走的是同一个脚本的 amd64 分支。
 appimage: frontend static
 	@bash scripts/build-appimage.sh amd64
 	@bash scripts/build-appimage.sh arm64
@@ -56,7 +59,8 @@ install:
 frontend:
 	pnpm --filter gotty-frontend build
 
-# docs removed (VitePress site) — see README.md
+# docs site removed (VitePress): 文档以 Markdown 形式留在 README 与 docs/,
+# 不再有站点构建 target
 
 # Copy vite build 产物(含 public/favicon.png)into internal/api/static for go:embed
 static: frontend

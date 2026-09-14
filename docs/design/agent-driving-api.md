@@ -2,10 +2,11 @@
 
 > 状态：已实现
 > 关联：`internal/api/agent_handler.go`（`/screen`、`/wait`、`/keys`）、
-> `internal/api/session_handler.go`（`GET /api/sessions` 列表）、
+> `internal/api/session_handler.go`（列表 / 标题 / 尺寸 / 信号）、
 > `internal/session/session.go`（`Screen` / `Wait` / `Input`）、
 > `internal/capture`（屏幕镜像渲染）、`cmd/session.go`（CLI 组）、
-> `cmd/keys.go`（命名键表）、ADR-0005（访问令牌姿态）
+> `cmd/forwards.go`（会话级 / 主机级转发子命令）、
+> `cmd/keys.go`（命名键表）、ADR-0005（访问令牌姿态）、ADR-0007（主机级转发常驻）
 > 参考：terminal-use（MIT，https://github.com/flipbit03/terminal-use）
 
 ## 1. 背景与动机
@@ -105,6 +106,26 @@
 
 （无会话时是 `{"sessions": []}`，不是 `null`。）
 
+### 2.5 会话管理端点（`gossh session` 也使用）
+
+这几个端点不属于 Agent 驱动语义（它们管理会话本身，不读屏也不注入输入），
+但 CLI 的 `rename` / `resize` / `signal` / `forwards` 建立在它们之上，故一并
+记在这里：
+
+- `PUT /api/sessions/{id}/title`，体 `{"title": "…"}`；
+- `POST /api/sessions/{id}/resize`，体 `{"width": <列>, "height": <行>}`
+  （CLI 的 `--cols` / `--rows` 映射到 width / height）；
+- `POST /api/sessions/{id}/signal`，体 `{"signal": "SIGTERM"}`。这是给会话
+  背后的进程发信号，与 `DELETE /api/sessions/{id}`（销毁会话）是两回事；
+  本地服务器会话在 Windows 上只有终止类信号有语义，其余静默 no-op（ADR-0008）；
+- `GET` / `POST /api/sessions/{id}/forwards`、`DELETE …/forwards/{fid}`：
+  会话级临时转发，跑在会话自己的 SSH 连接上——本地服务器会话没有 SSH
+  连接，因此返回明确错误而不是静默失败。
+
+> 主机级常驻转发不在会话端点上：配置写在主机记录里（`PUT /api/hosts/{id}`），
+> 运行状态见 `GET /api/hosts/{id}/forwards`（running/pending/failed/disabled），
+> 详见 ADR-0007 与 `gossh hosts forwards`。
+
 ## 3. 会话 CLI（`gossh session`）
 
 ### 3.1 定位与端点解析
@@ -154,6 +175,10 @@ terminfo 一致；带修饰的导航键/功能键用 `CSI 1;{mod}{final}` /
 | `wait` | 阻塞到匹配/静止 | `--text`、`--stable`、`--timeout` |
 | `type` | 输入字面文本 | `--enter` |
 | `press` | 发送命名键 | 位置参数为键名序列 |
+| `rename` | 设置会话标题（持久化在服务端） | 位置参数为标题 |
+| `resize` | 调整会话 PTY 尺寸（屏幕 / PNG 也按此渲染） | `--cols`、`--rows` |
+| `signal` | 给会话背后的进程发信号（不是销毁会话） | 位置参数为信号名（`SIGTERM`/`SIGINT`/`SIGHUP`/`SIGQUIT`/`SIGKILL`） |
+| `forwards` | 会话自己的临时端口转发 | `ls`；`add --kind --bind [--target]`；`rm <forward-id>` |
 | `destroy` / `kill` | 销毁会话（记录留作历史） | — |
 | `usage` | 一屏打印参考（面向 LLM） | — |
 

@@ -44,7 +44,9 @@
   兜底，入参校验见 `utils.IsValidSessionID`）。`session_id` 全 `0x00`
   表示**连接级消息**。
 - `type`：1 字节消息类型（复用既有 webtty 消息类型：`'1'`~`'5'`，
-  新增 `'A'`/`'D'`/`'a'`/`'b'`/`'E'`/`'0'`）。
+  多路复用新增 `'A'`/`'D'`/`'a'`/`'b'`/`'E'`；`'0'` 是 webtty 既有的
+  UnknownInput/UnknownOutput，**不是**本次新增的类型，路由层对它不做
+  特殊处理）。
 - `len`：payload 长度，2 字节大端（payload ≤ 65535）。
 - WebSocket 帧类型仍为 BinaryMessage，子协议仍为 `webtty`。
 
